@@ -1,9 +1,0 @@
-{
-    "elements": [
-        { "type": "Label", "caption": "Sauna-Steuerung (ESPHome) über MQTT. Übergeordnete Instanz: MQTT Server oder MQTT Client." },
-        { "type": "ValidationTextBox", "name": "Topic", "caption": "Topic-Präfix (wie in der ESP-Konfiguration)" }
-    ],
-    "actions": [
-        { "type": "Label", "caption": "Status kommt über <Präfix>/state, Befehle gehen an <Präfix>/set." }
-    ]
-}
