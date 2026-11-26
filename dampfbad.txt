@@ -1,0 +1,81 @@
+[14:00:37][I][app:149]: ESPHome version 2025.7.4 compiled on Nov 22 2026, 13:59:39
+[14:00:37][C][wifi:613]: WiFi:
+[14:00:37][C][wifi:434]:   Local MAC: B0:81:84:04:76:50
+[14:00:37][C][wifi:439]:   SSID: 'Guggenberg_IoT'
+[14:00:37][C][wifi:442]:   IP Address: 192.168.188.235
+[14:00:37][C][wifi:446]:   BSSID: 16:EF:15:CF:84:54
+[14:00:37][C][wifi:446]:   Hostname: 'sauna-sniffer'
+[14:00:37][C][wifi:446]:   Signal strength: -73 dB ▂▄▆█
+[14:00:37][C][wifi:455]:   Channel: 11
+[14:00:37][C][wifi:455]:   Subnet: 255.255.255.0
+[14:00:37][C][wifi:455]:   Gateway: 192.168.188.1
+[14:00:37][C][wifi:455]:   DNS1: 192.168.188.1
+[14:00:37][C][wifi:455]:   DNS2: 192.168.188.1
+[14:00:37][C][logger:246]: Logger:
+[14:00:37][C][logger:246]:   Max Level: DEBUG
+[14:00:37][C][logger:246]:   Initial Level: DEBUG
+[14:00:37][C][logger:252]:   Log Baud Rate: 115200
+[14:00:37][C][logger:252]:   Hardware UART: USB_SERIAL_JTAG
+[14:00:37][C][logger:259]:   Task Log Buffer Size: 768
+[14:00:37][C][uart.idf:155]: UART Bus 0:
+[14:00:37][C][uart.idf:157]:   RX Pin: GPIO20
+[14:00:37][C][uart.idf:159]:   RX Buffer Size: 1024
+[14:00:37][C][uart.idf:161]:   Baud Rate: 38400 baud
+[14:00:37][C][uart.idf:161]:   Data Bits: 8
+[14:00:37][C][uart.idf:161]:   Parity: NONE
+[14:00:37][C][uart.idf:161]:   Stop bits: 1
+[14:00:37][C][template.text_sensor:020]: Template Sensor 'Sauna Licht'
+[14:00:37][C][template.text_sensor:020]: Template Sensor 'Verdampfer heizt'
+[14:00:37][C][template.text_sensor:020]: Template Sensor 'Sauna Status'
+[14:00:37][C][template.text_sensor:020]: Template Sensor 'Ofen Status'
+[14:00:37][C][template.text_sensor:020]: Template Sensor 'Verdampfer Status'
+[14:00:37][C][template.sensor:022]: Template Sensor 'Sauna Ist-Temperatur'
+[14:00:37][C][template.sensor:022]:   State Class: ''
+[14:00:37][C][template.sensor:022]:   Unit of Measurement: '°C'
+[14:00:37][C][template.sensor:022]:   Accuracy Decimals: 0
+[14:00:37][C][template.sensor:023]:   Update Interval: never
+[14:00:37][C][template.sensor:022]: Template Sensor 'Sauna Soll-Temperatur'
+[14:00:37][C][template.sensor:022]:   State Class: ''
+[14:00:37][C][template.sensor:022]:   Unit of Measurement: '°C'
+[14:00:37][C][template.sensor:022]:   Accuracy Decimals: 0
+[14:00:37][C][template.sensor:023]:   Update Interval: never
+[14:00:37][C][template.sensor:022]: Template Sensor 'Verdampfer Feuchtestufe'
+[14:00:37][C][template.sensor:022]:   State Class: ''
+[14:00:37][C][template.sensor:022]:   Unit of Measurement: ''
+[14:00:37][C][template.sensor:022]:   Accuracy Decimals: 0
+[14:00:37][C][template.sensor:023]:   Update Interval: never
+[14:00:37][C][template.sensor:022]: Template Sensor 'Verdampfer Kurzzeit Restzeit'
+[14:00:37][C][template.sensor:022]:   State Class: ''
+[14:00:37][C][template.sensor:022]:   Unit of Measurement: 'min'
+[14:00:37][C][template.sensor:022]:   Accuracy Decimals: 0
+[14:00:37][C][template.sensor:023]:   Update Interval: never
+[14:00:37][C][template.sensor:022]: Template Sensor 'Sauna Laufzeit seit Start'
+[14:00:37][C][template.sensor:022]:   State Class: ''
+[14:00:37][C][template.sensor:022]:   Unit of Measurement: 'min'
+[14:00:37][C][template.sensor:022]:   Accuracy Decimals: 0
+[14:00:37][C][template.sensor:023]:   Update Interval: never
+[14:00:37][C][gpio.binary_sensor:052]: GPIO Binary Sensor 'Marker Taste'
+[14:00:37][C][gpio.binary_sensor:053]:   Pin: GPIO9
+[14:00:37][C][gpio.binary_sensor:055]:   Mode: interrupt
+[14:00:37][C][gpio.binary_sensor:072]:   Interrupt Type: ANY_EDGE
+[14:00:37][C][web_server:310]: Web Server:
+[14:00:37][C][web_server:310]:   Address: sauna-sniffer.local:80
+[14:00:37][C][esphome.ota:073]: Over-The-Air updates:
+[14:00:37][C][esphome.ota:073]:   Address: sauna-sniffer.local:3232
+[14:00:37][C][esphome.ota:073]:   Version: 2
+[14:00:37][C][safe_mode:018]: Safe Mode:
+[14:00:37][C][safe_mode:019]:   Boot considered successful after 60 seconds
+[14:00:37][C][safe_mode:019]:   Invoke after 10 boot attempts
+[14:00:37][C][safe_mode:019]:   Remain for 300 seconds
+[14:00:37][C][web_server.ota:224]: Web Server OTA
+[14:00:37][C][api:207]: API Server:
+[14:00:37][C][api:207]:   Address: sauna-sniffer.local:6053
+[14:00:37][C][api:217]:   Using noise encryption: NO
+[14:00:37][C][mdns:122]: mDNS:
+[14:00:37][C][mdns:122]:   Hostname: sauna-sniffer
+[14:00:42][D][web_server_idf:335]: Removing dead event source session
+[14:00:56][I][safe_mode:042]: Boot seems successful; resetting boot loop counter
+[14:00:56][D][esp32.preferences:142]: Writing 1 items: 0 cached, 1 written, 0 failed
+[14:02:47][D][web_server_idf:335]: Removing dead event source session
+[14:02:49][D][web_server_idf:335]: Removing dead event source session
+[14:02:50][D][web_server_idf:335]: Removing dead event source session

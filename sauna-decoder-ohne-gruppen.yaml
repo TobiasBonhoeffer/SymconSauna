@@ -1,0 +1,282 @@
+# WEKA Saunabus – Decoder (nur Mitlesen, sendet nie)
+# Hardware: XIAO ESP32C3 + RS-485-Modul
+#
+# Verdrahtung:
+#   Modul VCC -> 3V3          Modul GND -> GND (+ Bus-GND, gelb)
+#   Modul RXD -> D7 (GPIO20)
+#   Modul TXD: über 10 kOhm an VCC; D3-Draht kann bleiben
+#   Modul A+ -> Bus A (grün)   Modul B- -> Bus B (braun)
+#   Bus +15 V (weiß) unbeschaltet, KEINE Bias-Widerstände
+#
+# Rahmenformat (ohne die ACK-Bytes 0x06):
+#   [Adresse] 0C 02 [Register] [0F = Bedienteil->Modul / 0E = Modul->Bedienteil] [Wert] 80
+#   Adresse 84 = Ofensteuerung MS_OS1, 88 = Verdampfer MS_VD1
+#
+# Bekannte Register:
+#   84/88 Reg 08  Status: 02 Standby, 03 Startet, 04 Bereit, 09 In Betrieb
+#                 (bei 84 zusätzlich im Licht-Block, dort immer 02)
+#   84 Reg 0A     Licht: 02 an, 00 aus
+#   84 Reg 30     Ist-Temperatur °C (vom Ofenmodul gemeldet)
+#   84 Reg 31     Soll-Temperatur °C
+#   88 Reg 14     Ist-Temperatur, vom Bedienteil an den Verdampfer weitergegeben
+#   88 Reg 40     Feuchtestufe x 10 (Stufe 1 = 10, Stufe 6 = 60)
+#   88 Reg 41     Restzeit Kurzzeitbetrieb in Minuten
+#   88 Reg 42     Verdampfer heizt: 02 ja, 00 nein (vom Verdampfer gemeldet)
+#   Restzeit der Sitzung: wird NICHT übertragen (Timer im Bedienteil)
+
+esphome:
+  name: sauna-sniffer
+  on_boot:
+    priority: -100
+    then:
+      # Alle Anzeigen sofort sichtbar machen: "–" bzw. NA bis echte Werte kommen
+      - lambda: |-
+          for (auto *t : {id(sauna_status), id(ofen_status), id(vd_status), id(licht), id(vd_heizt)})
+            t->publish_state("–");
+          for (auto *x : {id(temp_ist), id(temp_soll), id(feuchte), id(kurzzeit), id(laufzeit)})
+            x->publish_state(NAN);
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+  hardware_uart: USB_SERIAL_JTAG
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+  - platform: web_server
+
+web_server:
+  port: 80
+  version: 2
+
+uart:
+  id: saunabus
+  rx_pin: GPIO20
+  baud_rate: 38400
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+  rx_buffer_size: 1024
+
+text_sensor:
+  - platform: template
+    id: licht
+    name: "Sauna Licht"
+  - platform: template
+    id: vd_heizt
+    name: "Verdampfer heizt"
+  - platform: template
+    id: sauna_status
+    name: "Sauna Status"
+  - platform: template
+    id: ofen_status
+    name: "Ofen Status"
+  - platform: template
+    id: vd_status
+    name: "Verdampfer Status"
+
+sensor:
+  - platform: template
+    id: temp_ist
+    name: "Sauna Ist-Temperatur"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: temp_soll
+    name: "Sauna Soll-Temperatur"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: feuchte
+    name: "Verdampfer Feuchtestufe"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: kurzzeit
+    name: "Verdampfer Kurzzeit Restzeit"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: laufzeit
+    name: "Sauna Laufzeit seit Start"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+
+binary_sensor:
+  - platform: gpio
+    name: "Marker Taste"
+    pin:
+      number: GPIO9
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="
+
+button:
+  - platform: template
+    name: "Register-Übersicht ins Log"
+    on_press:
+      - lambda: |-
+          ESP_LOGW("sauna", "===== Register-Übersicht =====");
+          for (int a = 0; a < 2; a++)
+            for (int r = 0; r < 256; r++) {
+              int v = id(regs)[a * 256 + r];
+              if (v < 0) continue;
+              if (r == 0xF8) ESP_LOGW("sauna", "Adr %02X Reg 08 (Licht-Block) = %02X (%d)", a ? 0x88 : 0x84, v, v);
+              else ESP_LOGW("sauna", "Adr %02X Reg %02X = %02X (%d)", a ? 0x88 : 0x84, r, v, v);
+            }
+  - platform: template
+    name: "Sniffer Marker"
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="
+
+globals:
+  - id: regs
+    type: std::array<int16_t, 512>
+  - id: state84
+    type: int
+    initial_value: '-1'
+  - id: state88
+    type: int
+    initial_value: '-1'
+  - id: last84_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: last88_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: session_start_ms
+    type: uint32_t
+    initial_value: '0'
+
+interval:
+  # Parser: Bytes lesen, ACKs (0x06) entfernen, Rahmen auswerten
+  - interval: 10ms
+    then:
+      - lambda: |-
+          static uint8_t f[8];
+          static int n = 0;
+          static bool init = false;
+          static int pending08 = -1;
+          static uint8_t pending_addr = 0;
+          if (!init) { id(regs).fill(-1); init = true; }
+
+          auto store = [&](uint8_t addr, int slot, uint8_t typ, uint8_t val) {
+            int idx = ((addr == 0x84) ? 0 : 256) + slot;
+            if (id(regs)[idx] != val) {
+              char prev[8];
+              if (id(regs)[idx] < 0) snprintf(prev, sizeof(prev), "--");
+              else snprintf(prev, sizeof(prev), "%02X", id(regs)[idx]);
+              if (slot == 0xF8)
+                ESP_LOGI("sauna", "Adr %02X Reg 08 (Licht-Block) [%02X] = %02X (%d)   vorher %s", addr, typ, val, val, prev);
+              else
+                ESP_LOGI("sauna", "Adr %02X Reg %02X [%02X] = %02X (%d)   vorher %s", addr, slot, typ, val, val, prev);
+              id(regs)[idx] = val;
+            }
+          };
+
+          auto *u = id(saunabus);
+          uint8_t b;
+          while (u->available() && u->read_byte(&b)) {
+            if (b == 0x06) continue;
+            if (b == 0x84 || b == 0x88) { n = 0; }
+            else if (n == 0) continue;
+            f[n++] = b;
+            if (b == 0x80 || n >= 8) {
+              if (n == 7 && f[6] == 0x80 && f[1] == 0x0C && f[2] == 0x02) {
+                uint8_t addr = f[0], reg = f[3], typ = f[4], val = f[5];
+
+                // Reg 08: im Licht-Block (gefolgt von Reg 0A) nicht der Status
+                if (pending08 >= 0) {
+                  if (reg == 0x0A) {
+                    store(pending_addr, 0xF8, 0x0F, (uint8_t) pending08);
+                  } else {
+                    store(pending_addr, 0x08, 0x0F, (uint8_t) pending08);
+                    if (pending_addr == 0x84) { id(state84) = pending08; id(last84_ms) = millis(); }
+                    else                      { id(state88) = pending08; id(last88_ms) = millis(); }
+                  }
+                  pending08 = -1;
+                }
+                if (reg == 0x08) { pending08 = val; pending_addr = addr; }
+                else store(addr, reg, typ, val);
+
+                if (addr == 0x84) {
+                  switch (reg) {
+                    case 0x0A: {
+                      std::string on = (val == 0x02) ? "an" : "aus";
+                      if (id(licht).state != on) id(licht).publish_state(on);
+                      break;
+                    }
+                    case 0x30: if (id(temp_ist).state != val) id(temp_ist).publish_state(val); break;
+                    case 0x31: if (id(temp_soll).state != val) id(temp_soll).publish_state(val); break;
+                  }
+                } else {
+                  switch (reg) {
+                    case 0x40: { float st = val / 10.0f; if (id(feuchte).state != st) id(feuchte).publish_state(st); break; }
+                    case 0x41: if (id(kurzzeit).state != val) id(kurzzeit).publish_state(val); break;
+                    case 0x42: {
+                      std::string on = (val == 0x02) ? "ja" : "nein";
+                      if (id(vd_heizt).state != on) id(vd_heizt).publish_state(on);
+                      break;
+                    }
+                  }
+                }
+              }
+              n = 0;
+            }
+          }
+
+  # Status zusammenfassen (1x pro Sekunde)
+  - interval: 1s
+    then:
+      - lambda: |-
+          auto name = [](int v) -> std::string {
+            switch (v) {
+              case 0x02: return "Standby";
+              case 0x03: return "Startet";
+              case 0x04: return "Bereit";
+              case 0x09: return "In Betrieb";
+              case -1:   return "Aus";
+              default: { char t[24]; snprintf(t, sizeof(t), "unbekannt (0x%02X)", v); return t; }
+            }
+          };
+          // Ohne Haupt-Block seit 3 s: Modul gilt als Standby
+          int s84 = (millis() - id(last84_ms) > 3000) ? 0x02 : id(state84);
+          int s88 = (millis() - id(last88_ms) > 3000) ? 0x02 : id(state88);
+          if (id(ofen_status).state != name(s84)) id(ofen_status).publish_state(name(s84));
+          if (id(vd_status).state != name(s88)) id(vd_status).publish_state(name(s88));
+
+          bool o = (s84 == 0x09), v = (s88 == 0x09);
+          std::string s;
+          if (o && v)      s = "In Betrieb (Biosauna)";
+          else if (o)      s = "In Betrieb (Finnische Sauna)";
+          else if (v)      s = "In Betrieb (Dampfbad)";
+          else if (s84 == 0x04 || s88 == 0x04) s = "Bereit";
+          else             s = "Standby";
+          if (id(sauna_status).state != s) {
+            if (s.rfind("In Betrieb", 0) == 0 && id(sauna_status).state.rfind("In Betrieb", 0) != 0)
+              id(session_start_ms) = millis();
+            id(sauna_status).publish_state(s);
+          }
+          float mins = 0;
+          if (s.rfind("In Betrieb", 0) == 0) mins = (float) ((millis() - id(session_start_ms)) / 60000);
+          if (id(laufzeit).state != mins) id(laufzeit).publish_state(mins);

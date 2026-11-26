@@ -1,0 +1,299 @@
+# WEKA Saunabus – Sendetest mit UMGEBAUTEM RS-485-Modul (aktive Richtungssteuerung)
+# Hardware: XIAO ESP32C3 + MAX485-Modul, Pins 2, 3, 4 des MAX485 hochgebogen
+#
+# Verdrahtung:
+#   Modul VCC -> 3V3          Modul GND -> GND (+ Bus-GND, gelb)
+#   Modul RXD -> D7 (GPIO20)  (RO, Pin 1, bleibt auf der Platine)
+#   MAX485 Pin 4 (DI)         -> D3 (GPIO5)   Draht direkt an den Pin
+#   MAX485 Pin 2 (RE) + 3 (DE) gebrückt -> D2 (GPIO4), dazu 10 kOhm nach GND
+#   Modul TXD bleibt frei, Bias-Widerstände entfernen
+#   Modul A+ -> Bus A (grün)   Modul B- -> Bus B (braun)
+#   Bus +15 V (weiß) bleibt unbeschaltet
+
+esphome:
+  name: sauna-sniffer
+  on_boot:
+    priority: -100
+    then:
+      # Empfangs-Verzögerung des ESP-IDF-Treibers abschalten: jedes Byte
+      # sofort weiterreichen (sonst ~3 ms Verzögerung bis zum ACK)
+      - lambda: |-
+          uart_port_t p = (uart_port_t) id(saunabus)->get_hw_serial_number();
+          uart_set_rx_full_threshold(p, 1);
+          uart_set_rx_timeout(p, 1);
+          ESP_LOGW("send", "UART %d: RX-Schwelle 1, RX-Timeout 1 gesetzt", (int) p);
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+  hardware_uart: USB_SERIAL_JTAG
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+  - platform: web_server
+
+web_server:
+  port: 80
+
+# Richtungsumschaltung: High = senden, Low = empfangen
+output:
+  - platform: gpio
+    pin: GPIO4
+    id: de_pin
+
+# Zeitpunkt des letzten Paket-Endes auf dem Bus
+globals:
+  - id: last_rx
+    type: uint32_t
+    initial_value: '0'
+  - id: ack_pause_us
+    type: int
+    initial_value: '520'
+
+# Pause nach jedem eigenen Byte (µs), in der das Modul sein ACK sendet.
+# Auf der Webseite einstellbar.
+number:
+  - platform: template
+    name: "ACK-Pause us"
+    optimistic: true
+    min_value: 100
+    max_value: 1500
+    step: 10
+    initial_value: 520
+    set_action:
+      - lambda: id(ack_pause_us) = (int) x;
+
+# 9. Bit je Byte als Muster aus 7 Zeichen (Ziel, Absender, 02, Register, Typ, Wert, Ende),
+# auf der Webseite änderbar. Ermittelt (Licht AUS erfolgreich, per Oszilloskop bestätigt):
+# 1 1 0 0 1 0 1 = Steuerbytes (Ziel, Absender, Typ, Ende) 1, Datenbytes 0.
+text:
+  - platform: template
+    id: bit9_mask
+    name: "9.Bit-Muster (7 Stellen)"
+    mode: text
+    optimistic: true
+    min_length: 7
+    max_length: 7
+    initial_value: "1100101"
+
+uart:
+  id: saunabus
+  rx_pin: GPIO20
+  tx_pin: GPIO5
+  baud_rate: 38400
+  data_bits: 8
+  parity: ODD            # vermutet: 8O1 (ungerade Parität), siehe Analyse
+  stop_bits: 1
+  rx_buffer_size: 512
+  debug:
+    direction: RX        # TX-Debug aus: das Loggen bremst sonst zwischen den Bytes
+    dummy_receiver: true
+    after:
+      timeout: 4ms
+    sequence:
+      - lambda: |-
+          UARTDebug::log_hex(direction, bytes, ' ');
+          id(last_rx) = millis();
+
+# Sendet erst in der Pause direkt nach einem Paket. NEU: Handshake wie
+# beim Bedienteil – nach jedem Byte (außer 0x80) wird auf das ACK (0x06)
+# des Moduls gewartet. Die 0x06 senden wir NICHT selbst.
+script:
+  - id: send_frame
+    mode: single
+    parameters:
+      addr: int
+      reg: int
+      val: int
+      endmark: int
+    then:
+      - wait_until:
+          condition:
+            lambda: |-
+              uint32_t d = millis() - id(last_rx);
+              return d > 10 && d < 100;
+          timeout: 3s
+      - lambda: |-
+          const uint8_t frame[7] = {(uint8_t) addr, 0x0C, 0x02, (uint8_t) reg, 0x0F, (uint8_t) val, 0x80};
+          auto *u = id(saunabus);
+          uint8_t b;
+          uint32_t lat[7] = {0};      // Zeit bis zum ACK je Byte (µs)
+          int fail = -1; uint8_t answer = 0;
+          // 9. Bit je Byte: 1 für die beiden Adressbytes (Ziel 84, Absender 0C),
+          // Muster kommt aus dem Textfeld "9.Bit-Muster" (endmark >= 0 überschreibt das Endbyte).
+          // Erzeugt über das Paritätsbit: je Byte ODD oder EVEN wählen.
+          int mark[7];
+          std::string m = id(bit9_mask).state;
+          for (int k = 0; k < 7; k++) mark[k] = (k < (int) m.size() && m[k] == '1') ? 1 : 0;
+          if (endmark >= 0) mark[6] = endmark;
+          uart_port_t port = (uart_port_t) u->get_hw_serial_number();
+          while (u->available()) u->read_byte(&b);   // Empfangspuffer leeren
+          for (int i = 0; i < 7; i++) {
+            bool even_ones = (__builtin_popcount(frame[i]) % 2) == 0;
+            uart_set_parity(port, (even_ones == (mark[i] == 1)) ? UART_PARITY_ODD : UART_PARITY_EVEN);
+            id(de_pin).turn_on();                      // Sender an
+            u->write_byte(frame[i]);
+            u->flush();                                // warten bis Byte raus ist
+            id(de_pin).turn_off();                     // sofort zurück auf Empfang
+            if (frame[i] == 0x80) break;              // nach Endbyte kein ACK
+            uint32_t t = micros();
+            bool got = false;
+            while (micros() - t < 20000) {
+              if (u->available() && u->read_byte(&b)) { got = true; break; }
+            }
+            lat[i] = micros() - t;
+            if (!got || b != 0x06) { fail = i; answer = got ? b : 0xFF; break; }
+          }
+          uart_set_parity(port, UART_PARITY_ODD);     // zurück zum Mitlesen
+          // Erst NACH dem Senden loggen, damit das Timing nicht leidet
+          if (fail < 0) {
+            ESP_LOGW("send", ">>> Reg 0x%02X = 0x%02X gesendet, alle ACKs ok (Muster %d%d%d%d%d%d%d)", reg, val, mark[0], mark[1], mark[2], mark[3], mark[4], mark[5], mark[6]);
+          } else {
+            ESP_LOGW("send", "Abbruch bei Byte %d (0x%02X): Antwort 0x%02X (FF = keine), Muster %d%d%d%d%d%d%d", fail, frame[fail], answer, mark[0], mark[1], mark[2], mark[3], mark[4], mark[5], mark[6]);
+          }
+          ESP_LOGW("send", "ACK-Zeiten us: %u %u %u %u %u %u", lat[0], lat[1], lat[2], lat[3], lat[4], lat[5]);
+
+  # Variante "schnell": wartet nicht auf das Erkennen des ACK, sondern sendet
+  # das nächste Byte nach einer festen Pause - so knapp wie das Bedienteil.
+  # Die Antworten des Moduls werden danach gesammelt ausgegeben.
+  - id: send_fast
+    mode: single
+    parameters:
+      addr: int
+      reg: int
+      val: int
+    then:
+      - wait_until:
+          condition:
+            lambda: |-
+              uint32_t d = millis() - id(last_rx);
+              return d > 10 && d < 100;
+          timeout: 3s
+      - lambda: |-
+          const uint8_t frame[7] = {(uint8_t) addr, 0x0C, 0x02, (uint8_t) reg, 0x0F, (uint8_t) val, 0x80};
+          auto *u = id(saunabus);
+          uint8_t b;
+          while (u->available()) u->read_byte(&b);
+          uint32_t pause = (uint32_t) id(ack_pause_us);
+          for (int i = 0; i < 7; i++) {
+            id(de_pin).turn_on();
+            u->write_byte(frame[i]);
+            u->flush();
+            id(de_pin).turn_off();
+            if (frame[i] == 0x80) break;
+            uint32_t t = micros();
+            while (micros() - t < pause) { }
+          }
+          delay(5);
+          std::string r;
+          char hx[4];
+          while (u->available() && u->read_byte(&b)) { snprintf(hx, sizeof(hx), "%02X ", b); r += hx; }
+          ESP_LOGW("send", "SCHNELL Reg 0x%02X=0x%02X, Pause %u us, Antworten: %s", reg, val, pause, r.c_str());
+
+button:
+  # --- Diagnose des umgebauten Moduls: NUR bei AUSGESCHALTETER Sauna benutzen! ---
+  - platform: template
+    name: "Diagnose 1: Sender 15 s an (Sauna AUS!)"
+    on_press:
+      - output.turn_on: de_pin
+      - logger.log: "Diagnose 1: Sender AN, jetzt A-B messen (erwartet deutlich positiv)"
+      - delay: 15s
+      - output.turn_off: de_pin
+      - logger.log: "Diagnose 1: Sender AUS"
+  - platform: template
+    name: "Diagnose 2: Sender 15 s Nullen senden (Sauna AUS!)"
+    on_press:
+      - lambda: |-
+          ESP_LOGW("diag", "Diagnose 2: sende 15 s lang 0x00, jetzt A-B messen (erwartet deutlich negativ)");
+          id(de_pin).turn_on();
+          uint32_t t = millis();
+          while (millis() - t < 15000) {
+            for (int i = 0; i < 40; i++) id(saunabus)->write_byte(0x00);
+            id(saunabus)->flush();
+            App.feed_wdt();          // Watchdog füttern, sonst Neustart
+            delay(1);
+          }
+          id(de_pin).turn_off();
+          ESP_LOGW("diag", "Diagnose 2: fertig");
+  - platform: template
+    name: "Sniffer Marker"
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="
+  - platform: template
+    name: "Test: Licht AN senden"
+    on_press:
+      - script.execute:
+          id: send_frame
+          addr: 0x84
+          reg: 0x0A
+          val: 0x02
+          endmark: -1
+  - platform: template
+    name: "Schnell: Licht AN"
+    on_press:
+      - script.execute:
+          id: send_fast
+          addr: 0x84
+          reg: 0x0A
+          val: 0x02
+  - platform: template
+    name: "Schnell: Licht AUS"
+    on_press:
+      - script.execute:
+          id: send_fast
+          addr: 0x84
+          reg: 0x0A
+          val: 0x00
+  # Test: wer schickt das ACK? An eine Adresse ohne Modul senden
+  - platform: template
+    name: "Test: an Adresse 82 senden (kein Modul)"
+    on_press:
+      - script.execute:
+          id: send_frame
+          addr: 0x82
+          reg: 0x0A
+          val: 0x00
+          endmark: -1
+  - platform: template
+    name: "Test: an Adresse 88 senden (Verdampfer)"
+    on_press:
+      - script.execute:
+          id: send_frame
+          addr: 0x88
+          reg: 0x0A
+          val: 0x00
+          endmark: -1
+  - platform: template
+    name: "Test: Licht AUS senden"
+    on_press:
+      - script.execute:
+          id: send_frame
+          addr: 0x84
+          reg: 0x0A
+          val: 0x00
+          endmark: -1
+
+binary_sensor:
+  - platform: gpio
+    name: "Marker Taste"
+    pin:
+      number: GPIO9
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="

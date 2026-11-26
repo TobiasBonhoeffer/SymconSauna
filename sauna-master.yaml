@@ -1,0 +1,568 @@
+# WEKA Saunabus – Master-Betrieb Stufe 2/3 (Bedienteil-Ersatz: Standby, Bereit, Test-Sitzung, Ausschalten)
+# Benötigt sauna_bus.h im selben Ordner.
+# Hardware: XIAO ESP32C3 + umgebautes MAX485-Modul (aktive Richtungssteuerung)
+#
+# Verdrahtung:
+#   Modul VCC (rot)  -> 3V3          Modul GND (schwarz) -> GND + Bus GND (gelb)
+#   RXD (grau)       -> D7 (GPIO20)
+#   MAX485 Pin 4 DI (grün)       -> D3 (GPIO5)
+#   MAX485 Pin 2+3 DE/RE (weiß)  -> D2 (GPIO4), 10 kOhm nach GND
+#   TXD (lila): 10 kOhm nach VCC
+#   A+ (orange) -> Bus grün        B- (gelb) -> Bus braun
+#   Bus +15 V (weiß) unbeschaltet
+#
+# Protokoll (Stand der Entschlüsselung):
+#   38400 Baud, 8 Datenbits + 9. Bit (1 = Steuerbyte, 0 = Datenbyte), 1 Stopbit
+#   Jedes Byte (außer 0x80) wird vom Empfänger mit 0x06 (ACK) quittiert, 0x1A = Abbruch
+#   Rahmen: [Ziel] [0C/0D] [02/01] [Register] [0F/0E] [Wert] [80]
+#     9. Bit:   1      1       0        0         1      0     1
+#     Ziel 84 = Ofen MS_OS1, 88 = Verdampfer MS_VD1, Absender = Bedienteil
+#     0F = Wert kommt vom Bedienteil, 0E = Wert kommt vom Modul
+#   Register: siehe Kommentare im Parser unten
+
+esphome:
+  name: sauna-sniffer
+  includes:
+    - sauna_bus.h
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          uart_port_t p = (uart_port_t) id(saunabus)->get_hw_serial_number();
+          uart_set_rx_full_threshold(p, 1);
+          uart_set_rx_timeout(p, 1);
+          for (auto *t : {id(sauna_status), id(ofen_status), id(vd_status), id(licht), id(vd_heizt), id(bedienteil)})
+            t->publish_state("–");
+          for (auto *x : {id(temp_ist), id(temp_soll), id(feuchte), id(kurzzeit), id(laufzeit), id(betriebsstunden), id(sitzungen)})
+            x->publish_state(NAN);
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+  hardware_uart: USB_SERIAL_JTAG
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+  - platform: web_server
+
+web_server:
+  port: 80
+  version: 2
+
+uart:
+  id: saunabus
+  rx_pin: GPIO20
+  tx_pin: GPIO5
+  baud_rate: 38400
+  data_bits: 8
+  parity: ODD
+  stop_bits: 1
+  rx_buffer_size: 1024
+
+# Richtungsumschaltung: High = senden, Low = empfangen
+output:
+  - platform: gpio
+    pin: GPIO4
+    id: de_pin
+
+globals:
+  - id: regs
+    type: std::array<int16_t, 512>
+  - id: state84
+    type: int
+    initial_value: '-1'
+  - id: state88
+    type: int
+    initial_value: '-1'
+  - id: last84_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: last88_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: session_start_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: last_rx
+    type: uint32_t
+    initial_value: '0'
+  - id: licht_soll
+    type: bool
+    initial_value: 'false'
+  - id: master_fehler
+    type: int
+    initial_value: '0'
+  - id: phase            # 0 Standby, 1 Bereit, 2 Sitzung, 3 Ausschalten
+    type: int
+    initial_value: '0'
+  - id: sitzung_start
+    type: uint32_t
+    initial_value: '0'
+  - id: soll_temp
+    type: int
+    initial_value: '40'
+  - id: max_min
+    type: int
+    initial_value: '10'
+  - id: c1_mark
+    type: int
+    initial_value: '1'
+  - id: polling_pause
+    type: bool
+    initial_value: 'false'
+  - id: pause_start
+    type: uint32_t
+    initial_value: '0'
+
+number:
+  - platform: template
+    name: "Test: Solltemperatur"
+    unit_of_measurement: "°C"
+    optimistic: true
+    min_value: 30
+    max_value: 60
+    step: 1
+    initial_value: 40
+    set_action:
+      - lambda: id(soll_temp) = (int) x;
+  - platform: template
+    name: "Test: 9. Bit des C1-Bytes"
+    optimistic: true
+    min_value: 0
+    max_value: 1
+    step: 1
+    initial_value: 1
+    set_action:
+      - lambda: id(c1_mark) = (int) x;
+  - platform: template
+    name: "Test: maximale Dauer"
+    unit_of_measurement: "min"
+    optimistic: true
+    min_value: 1
+    max_value: 15
+    step: 1
+    initial_value: 10
+    set_action:
+      - lambda: id(max_min) = (int) x;
+
+text_sensor:
+  - platform: template
+    id: sauna_status
+    name: "Sauna Status"
+  - platform: template
+    id: ofen_status
+    name: "Ofen Status"
+  - platform: template
+    id: licht
+    name: "Sauna Licht"
+  - platform: template
+    id: bedienteil
+    name: "Bedienteil"
+  - platform: template
+    id: vd_status
+    name: "Verdampfer Status"
+  - platform: template
+    id: vd_heizt
+    name: "Verdampfer heizt"
+
+sensor:
+  - platform: template
+    id: temp_ist
+    name: "Sauna Ist-Temperatur"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: temp_soll
+    name: "Sauna Soll-Temperatur"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: laufzeit
+    name: "Sauna Laufzeit seit Start"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: betriebsstunden
+    name: "Ofen Betriebsstunden (vermutet)"
+    unit_of_measurement: "h"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: sitzungen
+    name: "Ofen Anzahl Sitzungen (vermutet)"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: feuchte
+    name: "Verdampfer Feuchtestufe"
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: kurzzeit
+    name: "Verdampfer Kurzzeit Restzeit"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+
+switch:
+  - platform: template
+    id: master
+    name: "Master-Betrieb (nur mit abgezogenem Bedienteil!)"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - lambda: id(phase) = 0;
+      - logger.log: { level: WARN, format: "Master-Betrieb EIN (Standby)" }
+    on_turn_off:
+      - lambda: |-
+          id(polling_pause) = false;
+          id(phase) = 3;   // beim Ausschalten immer den Ausschalt-Ablauf senden (inkl. 34 = 00)
+      - logger.log: { level: WARN, format: "Master-Betrieb AUS -> Ausschalt-Ablauf" }
+  - platform: template
+    id: rohdaten
+    name: "Werkzeug: Rohdaten loggen"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+
+binary_sensor:
+  - platform: gpio
+    name: "Werkzeug: Marker-Taste (BOOT)"
+    pin:
+      number: GPIO9
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="
+
+button:
+  - platform: template
+    name: "Licht AN"
+    on_press:
+      - lambda: |-
+          id(licht_soll) = true;
+          if (!id(master).state || id(phase) == 4) {   // ohne Polling: einmalig senden
+            bool ok = sbus::write_reg(id(saunabus), id(de_pin), 0x84, 0x0A, 0x02);
+            ESP_LOGW("master", "Licht AN einmalig gesendet: %s", ok ? "ok" : "FEHLER");
+          }
+  - platform: template
+    name: "Licht AUS"
+    on_press:
+      - lambda: |-
+          id(licht_soll) = false;
+          if (!id(master).state || id(phase) == 4) {
+            bool ok = sbus::write_reg(id(saunabus), id(de_pin), 0x84, 0x0A, 0x00);
+            ESP_LOGW("master", "Licht AUS einmalig gesendet: %s", ok ? "ok" : "FEHLER");
+          }
+  - platform: template
+    name: "Phase: Standby (Bedienteil an)"
+    on_press:
+      - lambda: |-
+          if (!id(master).state) { ESP_LOGW("master", "Erst Master-Betrieb einschalten"); return; }
+          if (id(phase) == 2) { ESP_LOGW("master", "Erst Sitzung beenden"); return; }
+          id(phase) = 0; ESP_LOGW("master", "Phase -> Standby");
+  - platform: template
+    name: "Phase: Bereit (Einstellung)"
+    on_press:
+      - lambda: |-
+          if (!id(master).state) { ESP_LOGW("master", "Erst Master-Betrieb einschalten"); return; }
+          id(phase) = 1; ESP_LOGW("master", "Phase -> Bereit");
+  - platform: template
+    name: "Phase: TEST-Sitzung starten"
+    on_press:
+      - lambda: |-
+          if (!id(master).state) { ESP_LOGW("master", "Erst Master-Betrieb einschalten"); return; }
+          id(phase) = 2; id(sitzung_start) = millis();
+          ESP_LOGW("master", "Phase -> TEST-Sitzung, Soll %d °C, max %d min", id(soll_temp), id(max_min));
+  - platform: template
+    name: "Phase: Sitzung beenden / Ausschalten"
+    on_press:
+      - lambda: |-
+          id(polling_pause) = false;
+          if (id(phase) != 4) { id(phase) = 3; ESP_LOGW("master", "Phase -> Ausschalten"); }
+  - platform: template
+    name: "Test Watchdog: Kommunikation anhalten"
+    on_press:
+      - lambda: |-
+          id(polling_pause) = true; id(pause_start) = millis();
+          ESP_LOGW("master", "WATCHDOG-TEST: Kommunikation angehalten (kein Ausschalt-Ablauf!)");
+  - platform: template
+    name: "Test Watchdog: Kommunikation fortsetzen"
+    on_press:
+      - lambda: |-
+          if (id(polling_pause)) ESP_LOGW("master", "WATCHDOG-TEST: fortgesetzt nach %u s", (millis() - id(pause_start)) / 1000);
+          id(polling_pause) = false;
+  - platform: template
+    name: "Werkzeug: Marker setzen"
+    on_press:
+      - logger.log:
+          level: WARN
+          format: "========== MARKER =========="
+  - platform: template
+    name: "Werkzeug: Register-Übersicht ins Log"
+    on_press:
+      - lambda: |-
+          ESP_LOGW("sauna", "===== Register-Übersicht =====");
+          for (int a = 0; a < 2; a++)
+            for (int r = 0; r < 256; r++) {
+              int v = id(regs)[a * 256 + r];
+              if (v < 0) continue;
+              if (r == 0xF8) ESP_LOGW("sauna", "Adr %02X Reg 08 (Licht-Block) = %02X (%d)", a ? 0x88 : 0x84, v, v);
+              else ESP_LOGW("sauna", "Adr %02X Reg %02X = %02X (%d)", a ? 0x88 : 0x84, r, v, v);
+            }
+
+# ---------------------------------------------------------------------------
+# Parser
+#   84/88 Reg 08  Status: 02 Standby, 03 Suchlauf/Start, 04 Bereit, 09 In Betrieb, 0D Ausschalten
+#                 (im Licht-Block immer 02)
+#   84 Reg 0A     Licht: 02 an, 00 aus
+#   84 Reg 34     Bedienteil: 02 an, 00 aus
+#   84 Reg 30     Ist-Temperatur °C (0E, vom Ofen)
+#   84 Reg 31     Soll-Temperatur °C
+#   84 Reg 33/3F  vom Ofen gemeldet (33 = 02 im Betrieb, 3F = 00; Bedeutung offen, evtl. Fehlercode)
+#   88 Reg 14     Ist-Temperatur, an den Verdampfer weitergegeben
+#   88 Reg 40     Feuchtestufe x 10
+#   88 Reg 41     Restzeit Kurzzeitbetrieb (min)
+#   88 Reg 42     Verdampfer heizt: 02 ja, 00 nein
+#   84 0D 01 Reg 20-2B: beim Ausschalten vom Ofen gelesen; 28/29 und 2A/2B zählen pro Sitzung hoch
+#                 (vermutet: Betriebsstunden und Anzahl Sitzungen), 20-25 bisher immer 00
+#   Sitzungsende (Timer abgelaufen) = gleicher Ablauf wie Ausschalten des Bedienteils:
+#     Suchlauf (08 = 03), 08 = 0D, 39 = 3C, Zähler lesen, Suchlauf, 34 = 00, dann Ruhe
+#   Suchlauf: Bedienteil sendet nur die Adresse (82, 90, 91, 92) und ohne ACK danach 1A
+# ---------------------------------------------------------------------------
+interval:
+  - interval: 10ms
+    then:
+      - lambda: |-
+          static uint8_t f[8];
+          static int n = 0;
+          static bool init = false;
+          static int pending08 = -1;
+          static uint8_t pending_addr = 0;
+          if (!init) { id(regs).fill(-1); init = true; }
+
+          auto store = [&](uint8_t addr, int slot, uint8_t typ, uint8_t val) {
+            int idx = ((addr == 0x84) ? 0 : 256) + slot;
+            if (id(regs)[idx] != val) {
+              char prev[8];
+              if (id(regs)[idx] < 0) snprintf(prev, sizeof(prev), "--");
+              else snprintf(prev, sizeof(prev), "%02X", id(regs)[idx]);
+              if (slot == 0xF8)
+                ESP_LOGI("sauna", "Adr %02X Reg 08 (Licht-Block) [%02X] = %02X (%d)   vorher %s", addr, typ, val, val, prev);
+              else
+                ESP_LOGI("sauna", "Adr %02X Reg %02X [%02X] = %02X (%d)   vorher %s", addr, slot, typ, val, val, prev);
+              id(regs)[idx] = val;
+            }
+          };
+
+          auto *u = id(saunabus);
+          uint8_t b;
+          while (u->available() && u->read_byte(&b)) {
+            id(last_rx) = millis();
+            if (b == 0x06) continue;
+            if (b == 0x84 || b == 0x88) { n = 0; }
+            else if (n == 0) {
+              if (id(rohdaten).state) ESP_LOGD("roh", "Byte außerhalb Rahmen: %02X", b);
+              continue;
+            }
+            f[n++] = b;
+            if (b == 0x80 || n >= 8) {
+              if (id(rohdaten).state) {
+                char s[40]; int p = 0;
+                for (int i = 0; i < n; i++) p += snprintf(s + p, sizeof(s) - p, "%02X ", f[i]);
+                ESP_LOGD("roh", "Rahmen: %s", s);
+              }
+              if (n == 7 && f[6] == 0x80 && f[1] == 0x0D) {
+                ESP_LOGI("sauna", "Adr %02X Leseblock 0D Reg %02X [%02X] = %02X (%d)", f[0], f[3], f[4], f[5], f[5]);
+                // Zähler (vermutet): 28/29 = Betriebsstunden (28 = High-Byte), 2A/2B = Sitzungen (2A = High-Byte)
+                static int c28 = -1, c29 = -1, c2a = -1, c2b = -1;
+                if (f[0] == 0x84) {
+                  switch (f[3]) {
+                    case 0x28: c28 = f[5]; if (c29 >= 0) id(betriebsstunden).publish_state(c28 * 256 + c29); break;
+                    case 0x29: c29 = f[5]; break;
+                    case 0x2A: c2a = f[5]; if (c2b >= 0) id(sitzungen).publish_state(c2a * 256 + c2b); break;
+                    case 0x2B: c2b = f[5]; break;
+                  }
+                }
+              }
+              if (n == 7 && f[6] == 0x80 && f[1] == 0x0C && f[2] == 0x02) {
+                uint8_t addr = f[0], reg = f[3], typ = f[4], val = f[5];
+                if (pending08 >= 0) {
+                  if (reg == 0x0A) {
+                    store(pending_addr, 0xF8, 0x0F, (uint8_t) pending08);
+                  } else {
+                    store(pending_addr, 0x08, 0x0F, (uint8_t) pending08);
+                    if (pending_addr == 0x84) { id(state84) = pending08; id(last84_ms) = millis(); }
+                    else                      { id(state88) = pending08; id(last88_ms) = millis(); }
+                  }
+                  pending08 = -1;
+                }
+                if (reg == 0x08) { pending08 = val; pending_addr = addr; }
+                else store(addr, reg, typ, val);
+
+                if (addr == 0x84) {
+                  switch (reg) {
+                    case 0x0A: { std::string on = (val == 0x02) ? "an" : "aus";
+                                 if (id(licht).state != on) id(licht).publish_state(on); break; }
+                    case 0x34: { std::string on = (val == 0x02) ? "an" : "aus";
+                                 if (id(bedienteil).state != on) id(bedienteil).publish_state(on); break; }
+                    case 0x30: if (id(temp_ist).state != val) id(temp_ist).publish_state(val); break;
+                    case 0x31: if (id(temp_soll).state != val) id(temp_soll).publish_state(val); break;
+                  }
+                } else {
+                  switch (reg) {
+                    case 0x40: { float st = val / 10.0f; if (id(feuchte).state != st) id(feuchte).publish_state(st); break; }
+                    case 0x41: if (id(kurzzeit).state != val) id(kurzzeit).publish_state(val); break;
+                    case 0x42: { std::string on = (val == 0x02) ? "ja" : "nein";
+                                 if (id(vd_heizt).state != on) id(vd_heizt).publish_state(on); break; }
+                  }
+                }
+              }
+              n = 0;
+            }
+          }
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          auto name = [](int v) -> std::string {
+            switch (v) {
+              case 0x02: return "Standby";
+              case 0x03: return "Suchlauf";
+              case 0x04: return "Bereit";
+              case 0x09: return "In Betrieb";
+              case 0x0D: return "Ausschalten";
+              case -1:   return "Aus";
+              default: { char t[24]; snprintf(t, sizeof(t), "unbekannt (0x%02X)", v); return t; }
+            }
+          };
+          if (id(master).state) return;   // im Master-Betrieb setzt der Master-Zyklus die Anzeige
+          int s84 = (millis() - id(last84_ms) > 3000) ? 0x02 : id(state84);
+          int s88 = (millis() - id(last88_ms) > 3000) ? 0x02 : id(state88);
+          if (id(ofen_status).state != name(s84)) id(ofen_status).publish_state(name(s84));
+          if (id(vd_status).state != name(s88)) id(vd_status).publish_state(name(s88));
+          // Bedienteil aus = kein Verkehr mehr auf dem Bus
+          if (millis() - id(last_rx) > 3000 && id(bedienteil).state != "aus") id(bedienteil).publish_state("aus");
+
+          bool o = (s84 == 0x09), v = (s88 == 0x09);
+          std::string s;
+          if (o && v)      s = "In Betrieb (Biosauna)";
+          else if (o)      s = "In Betrieb (Finnische Sauna)";
+          else if (v)      s = "In Betrieb (Dampfbad)";
+          else if (s84 == 0x04 || s88 == 0x04) s = "Bereit";
+          else             s = "Standby";
+          if (id(sauna_status).state != s) {
+            if (s.rfind("In Betrieb", 0) == 0 && id(sauna_status).state.rfind("In Betrieb", 0) != 0)
+              id(session_start_ms) = millis();
+            id(sauna_status).publish_state(s);
+          }
+          float mins = 0;
+          if (s.rfind("In Betrieb", 0) == 0) mins = (float) ((millis() - id(session_start_ms)) / 60000);
+          if (id(laufzeit).state != mins) id(laufzeit).publish_state(mins);
+
+  # -------------------------------------------------------------------------
+  # Master-Zyklus, 1x pro Sekunde, nachgebildet nach den Mitschnitten des Bedienteils
+  #   Standby:     84: 08=02, 0A=Licht, 34=02
+  #   Bereit:      84: 08=04, 09=05, 39=0A, lies 3F   88: 08=04, 09=05, 49=0A, lies 4F
+  #   Sitzung:     84: 08=09, 09=05, 39=32, lies 30, 32=FF, 31=Soll, 42=00, lies 33, lies 3F
+  #                vorher Licht-Block, danach einzelnes Byte C1 (ohne ACK, Bedeutung noch unbekannt)
+  #   Ausschalten: 84/88: 08=03, 09=00, 39/49=00; 84: 08=0D, 39=3C; 84: 08=03, 39=00; 34=00
+  #   Aus:         nichts mehr senden (wie ausgeschaltetes Bedienteil)
+  # Sicherheitsabschaltung der Test-Sitzung: Zeitlimit, Lesefehler, Übertemperatur, Reg 3F <> 0
+  # -------------------------------------------------------------------------
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (!id(master).state && id(phase) != 3) return;   // aus: nur noch den Ausschalt-Ablauf senden
+          if (id(phase) == 4) return;                        // Aus: nichts senden
+          if (id(polling_pause) && id(phase) != 3) {         // Watchdog-Test: schweigen
+            static uint32_t last_log = 0;
+            if (millis() - last_log > 10000) { ESP_LOGW("master", "WATCHDOG-TEST: seit %u s keine Kommunikation", (millis() - id(pause_start)) / 1000); last_log = millis(); }
+            return;
+          }
+          auto *u = id(saunabus); auto *de = id(de_pin);
+          uint8_t L = id(licht_soll) ? 0x02 : 0x00;
+          static int lesefehler = 0;
+          bool ok = true;
+          auto W = [&](uint8_t a, uint8_t r, uint8_t v) { ok = sbus::write_reg(u, de, a, r, v) && ok; };
+          auto lichtblock = [&](uint8_t panel) { W(0x84, 0x08, 0x02); W(0x84, 0x0A, L); W(0x84, 0x34, panel); };
+
+          switch (id(phase)) {
+            case 0: {  // Standby
+              lichtblock(0x02);
+              int t = sbus::read_reg(u, de, 0x84, 0x30);
+              if (t >= 0 && id(temp_ist).state != t) id(temp_ist).publish_state(t);
+              break;
+            }
+            case 1: {  // Bereit
+              W(0x84, 0x08, 0x04); W(0x84, 0x09, 0x05); W(0x84, 0x39, 0x0A);
+              int e3f = sbus::read_reg(u, de, 0x84, 0x3F);
+              W(0x88, 0x08, 0x04); W(0x88, 0x09, 0x05); W(0x88, 0x49, 0x0A);
+              int e4f = sbus::read_reg(u, de, 0x88, 0x4F);
+              static int l3f = -2, l4f = -2;
+              if (e3f != l3f || e4f != l4f) { ESP_LOGI("master", "Bereit: 3F=%d 4F=%d", e3f, e4f); l3f = e3f; l4f = e4f; }
+              break;
+            }
+            case 2: {  // TEST-Sitzung – Reihenfolge wie beim Bedienteil:
+                       // Licht-Block, Haupt-Block, dann einzelnes Byte C1 (ohne ACK)
+              lichtblock(0x02);
+              W(0x84, 0x08, 0x09); W(0x84, 0x09, 0x05); W(0x84, 0x39, 0x32);
+              int t = sbus::read_reg(u, de, 0x84, 0x30);
+              W(0x84, 0x32, 0xFF); W(0x84, 0x31, (uint8_t) id(soll_temp)); W(0x84, 0x42, 0x00);
+              int r33 = sbus::read_reg(u, de, 0x84, 0x33);
+              int r3f = sbus::read_reg(u, de, 0x84, 0x3F);
+              sbus::send_byte(u, de, 0xC1, id(c1_mark) == 1);
+              sbus::restore(u);
+              if (t >= 0) { lesefehler = 0; if (id(temp_ist).state != t) id(temp_ist).publish_state(t); }
+              else lesefehler++;
+              if (id(temp_soll).state != id(soll_temp)) id(temp_soll).publish_state(id(soll_temp));
+              static int l33 = -2;
+              if (r33 != l33) { ESP_LOGI("master", "Sitzung: Reg 33 = %d", r33); l33 = r33; }
+              uint32_t lauf_s = (millis() - id(sitzung_start)) / 1000;
+              const char *grund = nullptr;
+              if (lauf_s >= (uint32_t) id(max_min) * 60) grund = "Zeitlimit erreicht";
+              else if (lesefehler >= 3) grund = "Temperatur 3x nicht lesbar";
+              else if (t >= 0 && t > id(soll_temp) + 15) grund = "Uebertemperatur";
+              else if (r3f > 0) grund = "Reg 3F meldet Fehler";
+              if (grund) { ESP_LOGW("master", "SICHERHEITSABSCHALTUNG: %s", grund); id(phase) = 3; }
+              break;
+            }
+            case 3: {  // Ausschalten (einmaliger Ablauf)
+              W(0x84, 0x08, 0x03); W(0x84, 0x09, 0x00); W(0x84, 0x39, 0x00);
+              W(0x88, 0x08, 0x03); W(0x88, 0x09, 0x00); W(0x88, 0x49, 0x00);
+              W(0x84, 0x08, 0x0D); W(0x84, 0x39, 0x3C);
+              W(0x84, 0x08, 0x03); W(0x84, 0x39, 0x00);
+              lichtblock(0x00);
+              ESP_LOGW("master", "Ausschalt-Ablauf gesendet (%s) -> Aus (wie Bedienteil aus)", ok ? "ok" : "mit Fehlern");
+              id(phase) = 4; lesefehler = 0;
+              break;
+            }
+            case 4:    // Aus: Bus ruhig, wie ein ausgeschaltetes Bedienteil
+              return;
+          }
+          id(last_rx) = millis();
+          if (!ok) { id(master_fehler)++; ESP_LOGW("master", "Phase %d: nicht alle Rahmen quittiert (Fehler Nr. %d)", id(phase), id(master_fehler)); }
+          std::string l = id(licht_soll) ? "an" : "aus";
+          if (id(licht).state != l) id(licht).publish_state(l);
+          static const char *on[] = {"Standby", "Bereit", "In Betrieb", "Ausschalten", "Aus"};
+          if (id(ofen_status).state != on[id(phase)]) id(ofen_status).publish_state(on[id(phase)]);
+          std::string ss = id(phase) == 2 ? "In Betrieb (TEST, Finnische Sauna)" : on[id(phase)];
+          if (id(sauna_status).state != ss) id(sauna_status).publish_state(ss);
+          static const char *pn[] = {"Standby", "Bereit", "In Betrieb (TEST)", "Ausschalten", "Aus"};
+          std::string ps = std::string("ESP (Master): ") + pn[id(phase)];
+          if (id(bedienteil).state != ps) id(bedienteil).publish_state(ps);

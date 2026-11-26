@@ -1,0 +1,165 @@
+[22:12:58][I][app:149]: ESPHome version 2025.7.4 compiled on Nov 21 2026, 22:12:23
+[22:12:58][C][wifi:613]: WiFi:
+[22:12:58][C][wifi:434]:   Local MAC: B0:81:84:04:76:50
+[22:12:58][C][wifi:439]:   SSID: 'Guggenberg_IoT'
+[22:12:58][C][wifi:442]:   IP Address: 192.168.188.237
+[22:12:58][C][wifi:446]:   BSSID: A2:BA:5F:C4:AE:9C
+[22:12:58][C][wifi:446]:   Hostname: 'sauna-sniffer'
+[22:12:58][C][wifi:446]:   Signal strength: -69 dB ▂▄▆█
+[22:12:58][C][wifi:455]:   Channel: 1
+[22:12:58][C][wifi:455]:   Subnet: 255.255.255.0
+[22:12:58][C][wifi:455]:   Gateway: 192.168.188.1
+[22:12:58][C][wifi:455]:   DNS1: 192.168.188.1
+[22:12:58][C][wifi:455]:   DNS2: 192.168.188.1
+[22:12:58][C][logger:246]: Logger:
+[22:12:58][C][logger:246]:   Max Level: DEBUG
+[22:12:58][C][logger:246]:   Initial Level: DEBUG
+[22:12:58][C][logger:252]:   Log Baud Rate: 115200
+[22:12:58][C][logger:252]:   Hardware UART: USB_SERIAL_JTAG
+[22:12:58][C][logger:259]:   Task Log Buffer Size: 768
+[22:12:58][C][uart.idf:155]: UART Bus 0:
+[22:12:58][C][uart.idf:157]:   RX Pin: GPIO20
+[22:12:58][C][uart.idf:159]:   RX Buffer Size: 1024
+[22:12:58][C][uart.idf:161]:   Baud Rate: 38400 baud
+[22:12:58][C][uart.idf:161]:   Data Bits: 8
+[22:12:58][C][uart.idf:161]:   Parity: NONE
+[22:12:58][C][uart.idf:161]:   Stop bits: 1
+[22:12:58][C][template.text_sensor:020]: Template Sensor 'Sauna Status'
+[22:12:58][C][template.sensor:022]: Template Sensor 'Sauna Ist-Temperatur'
+[22:12:58][C][template.sensor:022]:   State Class: ''
+[22:12:58][C][template.sensor:022]:   Unit of Measurement: '°C'
+[22:12:58][C][template.sensor:022]:   Accuracy Decimals: 0
+[22:12:58][C][template.sensor:023]:   Update Interval: never
+[22:12:58][C][template.sensor:022]: Template Sensor 'Sauna Soll-Temperatur'
+[22:12:58][C][template.sensor:022]:   State Class: ''
+[22:12:58][C][template.sensor:022]:   Unit of Measurement: '°C'
+[22:12:58][C][template.sensor:022]:   Accuracy Decimals: 0
+[22:12:58][C][template.sensor:023]:   Update Interval: never
+[22:12:58][C][template.sensor:022]: Template Sensor 'Register 09 (unbekannt)'
+[22:12:58][C][template.sensor:022]:   State Class: ''
+[22:12:58][C][template.sensor:022]:   Unit of Measurement: ''
+[22:12:58][C][template.sensor:022]:   Accuracy Decimals: 0
+[22:12:58][C][template.sensor:023]:   Update Interval: never
+[22:12:58][C][template.binary_sensor:020]: Template Binary Sensor 'Sauna Licht'
+[22:12:58][C][gpio.binary_sensor:052]: GPIO Binary Sensor 'Marker Taste'
+[22:12:58][C][gpio.binary_sensor:053]:   Pin: GPIO9
+[22:12:58][C][gpio.binary_sensor:055]:   Mode: interrupt
+[22:12:58][C][gpio.binary_sensor:072]:   Interrupt Type: ANY_EDGE
+[22:12:59][C][web_server:310]: Web Server:
+[22:12:59][C][web_server:310]:   Address: sauna-sniffer.local:80
+[22:12:59][C][esphome.ota:073]: Over-The-Air updates:
+[22:12:59][C][esphome.ota:073]:   Address: sauna-sniffer.local:3232
+[22:12:59][C][esphome.ota:073]:   Version: 2
+[22:12:59][C][safe_mode:018]: Safe Mode:
+[22:12:59][C][safe_mode:019]:   Boot considered successful after 60 seconds
+[22:12:59][C][safe_mode:019]:   Invoke after 10 boot attempts
+[22:12:59][C][safe_mode:019]:   Remain for 300 seconds
+[22:12:59][C][web_server.ota:224]: Web Server OTA
+[22:12:59][C][api:207]: API Server:
+[22:12:59][C][api:207]:   Address: sauna-sniffer.local:6053
+[22:12:59][C][api:217]:   Using noise encryption: NO
+[22:12:59][C][mdns:122]: mDNS:
+[22:12:59][C][mdns:122]:   Hostname: sauna-sniffer
+[22:13:23][I][sauna:143]: Adr 84 Reg 08 (Licht-Block) [0F] = 02 (2)   vorher --
+[22:13:23][I][sauna:145]: Adr 84 Reg 0A [0F] = 00 (0)   vorher --
+[22:13:23][D][binary_sensor:026]: 'Sauna Licht': New state is OFF
+[22:13:23][I][sauna:145]: Adr 84 Reg 34 [0F] = 02 (2)   vorher --
+[22:13:26][I][sauna:145]: Adr 84 Reg 08 [0F] = 04 (4)   vorher --
+[22:13:26][D][text_sensor:069]: 'Sauna Status': Sending state 'Einstellung'
+[22:13:26][I][sauna:145]: Adr 84 Reg 09 [0F] = 05 (5)   vorher --
+[22:13:26][D][sensor:104]: 'Register 09 (unbekannt)': Sending state 5.00000  with 0 decimals of accuracy
+[22:13:26][I][sauna:145]: Adr 84 Reg 39 [0F] = 0A (10)   vorher --
+[22:13:26][I][sauna:145]: Adr 84 Reg 3F [0E] = 00 (0)   vorher --
+[22:13:26][I][sauna:145]: Adr 88 Reg 08 [0F] = 04 (4)   vorher --
+[22:13:26][I][sauna:145]: Adr 88 Reg 09 [0F] = 05 (5)   vorher --
+[22:13:26][I][sauna:145]: Adr 88 Reg 49 [0F] = 0A (10)   vorher --
+[22:13:26][I][sauna:145]: Adr 88 Reg 4F [0E] = 00 (0)   vorher --
+[22:13:36][D][text_sensor:069]: 'Sauna Status': Sending state 'Standby'
+[22:13:36][I][safe_mode:042]: Boot seems successful; resetting boot loop counter
+[22:13:36][D][esp32.preferences:142]: Writing 1 items: 0 cached, 1 written, 0 failed
+[22:13:40][I][sauna:145]: Adr 84 Reg 08 [0F] = 09 (9)   vorher 04
+[22:13:40][D][text_sensor:069]: 'Sauna Status': Sending state 'In Betrieb'
+[22:13:40][I][sauna:145]: Adr 84 Reg 39 [0F] = 32 (50)   vorher 0A
+[22:13:40][I][sauna:145]: Adr 84 Reg 30 [0E] = 30 (48)   vorher --
+[22:13:40][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 48.00000 °C with 0 decimals of accuracy
+[22:13:40][I][sauna:145]: Adr 84 Reg 32 [0F] = FF (255)   vorher --
+[22:13:40][I][sauna:145]: Adr 84 Reg 31 [0F] = 6E (110)   vorher --
+[22:13:40][D][sensor:104]: 'Sauna Soll-Temperatur': Sending state 110.00000 °C with 0 decimals of accuracy
+[22:13:40][I][sauna:145]: Adr 84 Reg 42 [0F] = 00 (0)   vorher --
+[22:13:40][I][sauna:145]: Adr 84 Reg 33 [0E] = 02 (2)   vorher --
+[22:13:41][I][sauna:145]: Adr 84 Reg 30 [0E] = 2F (47)   vorher 30
+[22:13:41][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 47.00000 °C with 0 decimals of accuracy
+[22:13:43][D][button:010]: 'Register-Übersicht ins Log' Pressed.
+[22:13:43][W][sauna:096]: ===== Register-Übersicht =====
+[22:13:43][W][sauna:102]: Adr 84 Reg 08 = 09 (9)
+[22:13:43][W][sauna:102]: Adr 84 Reg 09 = 05 (5)
+[22:13:43][W][sauna:102]: Adr 84 Reg 0A = 00 (0)
+[22:13:43][W][sauna:102]: Adr 84 Reg 30 = 2F (47)
+[22:13:43][W][sauna:102]: Adr 84 Reg 31 = 6E (110)
+[22:13:43][W][sauna:102]: Adr 84 Reg 32 = FF (255)
+[22:13:43][W][sauna:102]: Adr 84 Reg 33 = 02 (2)
+[22:13:43][W][sauna:102]: Adr 84 Reg 34 = 02 (2)
+[22:13:43][W][sauna:102]: Adr 84 Reg 39 = 32 (50)
+[22:13:43][W][sauna:102]: Adr 84 Reg 3F = 00 (0)
+[22:13:43][W][sauna:102]: Adr 84 Reg 42 = 00 (0)
+[22:13:43][W][sauna:101]: Adr 84 Reg 08 (Licht-Block) = 02 (2)
+[22:13:43][W][sauna:102]: Adr 88 Reg 08 = 04 (4)
+[22:13:43][W][sauna:102]: Adr 88 Reg 09 = 05 (5)
+[22:13:43][W][sauna:102]: Adr 88 Reg 49 = 0A (10)
+[22:13:43][W][sauna:102]: Adr 88 Reg 4F = 00 (0)
+[22:13:52][I][sauna:145]: Adr 84 Reg 30 [0E] = 2E (46)   vorher 2F
+[22:13:52][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 46.00000 °C with 0 decimals of accuracy
+[22:13:56][I][sauna:145]: Adr 84 Reg 30 [0E] = 2F (47)   vorher 2E
+[22:13:56][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 47.00000 °C with 0 decimals of accuracy
+[22:14:40][I][sauna:145]: Adr 84 Reg 30 [0E] = 30 (48)   vorher 2F
+[22:14:40][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 48.00000 °C with 0 decimals of accuracy
+[22:14:42][I][sauna:145]: Adr 84 Reg 30 [0E] = 2F (47)   vorher 30
+[22:14:42][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 47.00000 °C with 0 decimals of accuracy
+[22:14:47][I][sauna:145]: Adr 84 Reg 30 [0E] = 30 (48)   vorher 2F
+[22:14:47][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 48.00000 °C with 0 decimals of accuracy
+[22:14:58][D][button:010]: 'Register-Übersicht ins Log' Pressed.
+[22:14:58][W][sauna:096]: ===== Register-Übersicht =====
+[22:14:58][W][sauna:102]: Adr 84 Reg 08 = 09 (9)
+[22:14:58][W][sauna:102]: Adr 84 Reg 09 = 05 (5)
+[22:14:58][W][sauna:102]: Adr 84 Reg 0A = 00 (0)
+[22:14:58][W][sauna:102]: Adr 84 Reg 30 = 30 (48)
+[22:14:58][W][sauna:102]: Adr 84 Reg 31 = 6E (110)
+[22:14:58][W][sauna:102]: Adr 84 Reg 32 = FF (255)
+[22:14:58][W][sauna:102]: Adr 84 Reg 33 = 02 (2)
+[22:14:58][W][sauna:102]: Adr 84 Reg 34 = 02 (2)
+[22:14:58][W][sauna:102]: Adr 84 Reg 39 = 32 (50)
+[22:14:58][W][sauna:102]: Adr 84 Reg 3F = 00 (0)
+[22:14:58][W][sauna:102]: Adr 84 Reg 42 = 00 (0)
+[22:14:58][W][sauna:101]: Adr 84 Reg 08 (Licht-Block) = 02 (2)
+[22:14:58][W][sauna:102]: Adr 88 Reg 08 = 04 (4)
+[22:14:58][W][sauna:102]: Adr 88 Reg 09 = 05 (5)
+[22:14:58][W][sauna:102]: Adr 88 Reg 49 = 0A (10)
+[22:14:58][W][sauna:102]: Adr 88 Reg 4F = 00 (0)
+[22:15:04][I][sauna:145]: Adr 84 Reg 30 [0E] = 31 (49)   vorher 30
+[22:15:04][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 49.00000 °C with 0 decimals of accuracy
+[22:15:32][I][sauna:145]: Adr 84 Reg 30 [0E] = 32 (50)   vorher 31
+[22:15:32][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 50.00000 °C with 0 decimals of accuracy
+[22:15:46][I][sauna:145]: Adr 84 Reg 30 [0E] = 33 (51)   vorher 32
+[22:15:46][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 51.00000 °C with 0 decimals of accuracy
+[22:16:05][I][sauna:145]: Adr 84 Reg 30 [0E] = 34 (52)   vorher 33
+[22:16:05][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 52.00000 °C with 0 decimals of accuracy
+[22:16:07][D][button:010]: 'Register-Übersicht ins Log' Pressed.
+[22:16:07][W][sauna:096]: ===== Register-Übersicht =====
+[22:16:07][W][sauna:102]: Adr 84 Reg 08 = 09 (9)
+[22:16:07][W][sauna:102]: Adr 84 Reg 09 = 05 (5)
+[22:16:07][W][sauna:102]: Adr 84 Reg 0A = 00 (0)
+[22:16:07][W][sauna:102]: Adr 84 Reg 30 = 34 (52)
+[22:16:07][W][sauna:102]: Adr 84 Reg 31 = 6E (110)
+[22:16:07][W][sauna:102]: Adr 84 Reg 32 = FF (255)
+[22:16:07][W][sauna:102]: Adr 84 Reg 33 = 02 (2)
+[22:16:07][W][sauna:102]: Adr 84 Reg 34 = 02 (2)
+[22:16:07][W][sauna:102]: Adr 84 Reg 39 = 32 (50)
+[22:16:07][W][sauna:102]: Adr 84 Reg 3F = 00 (0)
+[22:16:07][W][sauna:102]: Adr 84 Reg 42 = 00 (0)
+[22:16:07][W][sauna:101]: Adr 84 Reg 08 (Licht-Block) = 02 (2)
+[22:16:07][W][sauna:102]: Adr 88 Reg 08 = 04 (4)
+[22:16:07][W][sauna:102]: Adr 88 Reg 09 = 05 (5)
+[22:16:07][W][sauna:102]: Adr 88 Reg 49 = 0A (10)
+[22:16:07][W][sauna:102]: Adr 88 Reg 4F = 00 (0)
+[22:16:25][I][sauna:145]: Adr 84 Reg 30 [0E] = 35 (53)   vorher 34
+[22:16:25][D][sensor:104]: 'Sauna Ist-Temperatur': Sending state 53.00000 °C with 0 decimals of accuracy
