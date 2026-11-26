@@ -1,0 +1,12 @@
+{
+    "id": "{1972938A-5307-4B92-91F3-4D579D6CD406}",
+    "author": "Tobias Bonhoeffer",
+    "name": "Sauna (WEKA / ESPHome)",
+    "url": "",
+    "compatibility": {
+        "version": "6.0"
+    },
+    "version": "1.0",
+    "build": 1,
+    "date": 1795725351
+}
