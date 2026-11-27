@@ -76,13 +76,13 @@
         <button class="round" style="width:56px; height:56px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
         </button>
-        <div style="position:relative; width:250px; height:250px">
-          <svg width="250" height="250" viewBox="0 0 300 300" role="img" aria-label="Temperaturanzeige">
+        <div id="dial" style="position:relative; width:250px; height:250px; touch-action:none; cursor:pointer">
+          <svg width="250" height="250" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur" aria-valuemin="40" aria-valuemax="110">
             <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
             <circle id="ring" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
-            <circle id="marker" cx="150" cy="150" r="10" fill="var(--bg)" stroke="var(--light)" stroke-width="3"/>
+            <circle id="marker" cx="150" cy="150" r="13" fill="var(--bg)" stroke="var(--light)" stroke-width="4"/>
           </svg>
-          <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px">
+          <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; pointer-events:none">
             <span style="font-size:13px; font-weight:500; color:var(--muted); letter-spacing:1.5px">IST</span>
             <span class="num" style="font-size:80px; font-weight:600; line-height:1; color:var(--big)"><span id="ist">–</span><span style="font-size:36px; vertical-align:top; color:var(--light)">°</span></span>
             <span style="font-size:16px; color:var(--light); font-weight:500">Ziel <span id="soll">–</span> °C</span>
@@ -251,11 +251,11 @@
   // vom Modul aufgerufen (erstes Laden und jede Änderung)
   function handleMessage(data) {
     var d = typeof data === 'string' ? JSON.parse(data) : data;
-    for (var k in d) { sxD[k] = d[k]; delete sxPending[k]; }
+    for (var k in d) { sxD[k] = d[k]; if (!(k === 'soll' && sxDrag)) delete sxPending[k]; }
     sxRender();
   }
 
-  function sxSoll(dlt) { var v = Math.max(40, Math.min(100, (val('soll') || 60) + dlt)); sxPending.soll = v; requestAction('soll', v); sxRender(); }
+  function sxSoll(dlt) { var v = Math.max(40, Math.min(110, (val('soll') || 60) + dlt)); sxPending.soll = v; requestAction('soll', v); sxRender(); }
   function sxDauer(dlt) { var v = Math.max(1, Math.min(15, (val('dauer') || 10) + dlt)); sxPending.dauer = v; requestAction('dauer', v); sxRender(); }
   function sxLicht() { var v = !val('licht'); sxPending.licht = v; requestAction('licht', v); sxRender(); }
   function sxMaster() { requestAction('master', !sxD.master); }
@@ -264,6 +264,35 @@
   function sxFavApply(i) { var f = sxD.favoriten[i]; sxPending.soll = f.soll; sxPending.dauer = f.dauer; requestAction('fav_apply', i); sxRender(); }
   function sxFavAdd() { requestAction('fav_add', JSON.stringify({ soll: val('soll'), dauer: val('dauer') })); }
   function sxFavDel(i) { if (confirm('Favorit löschen?')) requestAction('fav_del', i); }
+
+
+  // ---- Solltemperatur durch Ziehen am Ring ----
+  var sxDrag = false;
+  function sxDialValue(ev) {
+    var r = $('dial').getBoundingClientRect();
+    var dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
+    var ang = Math.atan2(dy, dx) * 180 / Math.PI;           // 0° = rechts, im Uhrzeigersinn
+    var rel = (ang - 135 + 360) % 360;                        // 0..360 ab Ringanfang (unten links)
+    if (rel > 270) rel = (rel > 315) ? 0 : 270;               // Lücke unten: zum näheren Ende
+    var t = Math.round(20 + rel / 270 * 90);
+    return Math.max(40, Math.min(110, t));
+  }
+  $('dial').addEventListener('pointerdown', function (ev) {
+    sxDrag = true; $('dial').setPointerCapture(ev.pointerId);
+    sxPending.soll = sxDialValue(ev); sxRender(); ev.preventDefault();
+  });
+  $('dial').addEventListener('pointermove', function (ev) {
+    if (!sxDrag) return;
+    var v = sxDialValue(ev);
+    if (v !== sxPending.soll) { sxPending.soll = v; sxRender(); }
+  });
+  function sxDialEnd(ev) {
+    if (!sxDrag) return;
+    sxDrag = false;
+    requestAction('soll', sxPending.soll);                    // erst beim Loslassen senden
+  }
+  $('dial').addEventListener('pointerup', sxDialEnd);
+  $('dial').addEventListener('pointercancel', sxDialEnd);
 
   sxPage('main');
   sxFit();
