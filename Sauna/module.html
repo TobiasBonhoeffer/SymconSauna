@@ -30,6 +30,12 @@
   .sx .hidden { display:none !important; }
   .sx .kv { display:flex; justify-content:space-between; gap:8px; font-size:13px; line-height:1.55; }
   .sx .kv span:first-child { color:var(--muted); }
+  .sx input.dur { -webkit-appearance:none; appearance:none; width:100%; height:24px; background:transparent; margin:0; touch-action:none; }
+  .sx input.dur::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:linear-gradient(to right, var(--accent) var(--p, 0%), var(--track) var(--p, 0%)); }
+  .sx input.dur::-moz-range-track { height:6px; border-radius:3px; background:var(--track); }
+  .sx input.dur::-moz-range-progress { height:6px; border-radius:3px; background:var(--accent); }
+  .sx input.dur::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; margin-top:-9px; border-radius:50%; background:var(--bg); border:4px solid var(--light); }
+  .sx input.dur::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--bg); border:4px solid var(--light); }
   .sx .fav { flex-shrink:0; height:46px; padding:0 14px; border-radius:14px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px;
              background:var(--card); border:1px solid var(--border); color:var(--text); }
   .sx .fav.on { background:var(--onBg); border-color:var(--accent); }
@@ -76,15 +82,15 @@
         <button class="round" style="width:56px; height:56px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
         </button>
-        <div id="dial" style="position:relative; width:250px; height:250px; touch-action:none; cursor:pointer">
-          <svg width="250" height="250" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur" aria-valuemin="40" aria-valuemax="110">
+        <div id="dial" style="position:relative; width:230px; height:230px; touch-action:none; cursor:pointer">
+          <svg width="230" height="230" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur" aria-valuemin="40" aria-valuemax="110">
             <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
             <circle id="ring" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
             <circle id="marker" cx="150" cy="150" r="13" fill="var(--bg)" stroke="var(--light)" stroke-width="4"/>
           </svg>
           <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; pointer-events:none">
             <span style="font-size:13px; font-weight:500; color:var(--muted); letter-spacing:1.5px">IST</span>
-            <span class="num" style="font-size:80px; font-weight:600; line-height:1; color:var(--big)"><span id="ist">–</span><span style="font-size:36px; vertical-align:top; color:var(--light)">°</span></span>
+            <span class="num" style="font-size:74px; font-weight:600; line-height:1; color:var(--big)"><span id="ist">–</span><span style="font-size:36px; vertical-align:top; color:var(--light)">°</span></span>
             <span style="font-size:16px; color:var(--light); font-weight:500">Ziel <span id="soll">–</span> °C</span>
           </div>
         </div>
@@ -106,17 +112,19 @@
         </div>
         <div class="row" style="gap:8px">
           <span id="timeSmall" style="font-size:12px; color:var(--muted)"></span>
-          <button class="round" style="width:44px; height:44px" aria-label="Dauer verkürzen" onclick="sxDauer(-1)">
+          <button class="round" style="width:44px; height:44px" aria-label="Dauer um 1 Minute verkürzen" onclick="sxDauer(-1)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
           </button>
-          <button class="round" style="width:44px; height:44px" aria-label="Dauer verlängern" onclick="sxDauer(1)">
+          <button class="round" style="width:44px; height:44px" aria-label="Dauer um 1 Minute verlängern" onclick="sxDauer(1)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           </button>
         </div>
       </div>
-      <div id="barWrap" style="height:6px; border-radius:3px; background:var(--track); overflow:hidden">
-        <div id="bar" style="height:6px; border-radius:3px; width:0; background:var(--accent)"></div>
+      <div id="barWrap" style="height:4px; border-radius:2px; background:var(--track); overflow:hidden">
+        <div id="bar" style="height:4px; border-radius:2px; width:0; background:var(--hold)"></div>
       </div>
+      <label for="durSlider" class="hidden">Dauer</label>
+      <input id="durSlider" class="dur" type="range" min="5" max="240" step="5" value="90" aria-label="Dauer">
     </div>
 
     <div class="row" style="gap:8px; height:50px">
@@ -209,6 +217,9 @@
     $('timeSmall').textContent = running ? 'Dauer ' + sxFmt(dauer) : '';
     $('barWrap').style.visibility = running ? 'visible' : 'hidden';
     $('bar').style.width = (running && dauer) ? Math.round((sxD.restzeit || 0) / dauer * 100) + '%' : '0';
+    if (!sxDurDrag && dauer !== undefined) { $('durSlider').value = dauer; }
+    var p = ((($('durSlider').value) - 5) / 235 * 100).toFixed(1) + '%';
+    $('durSlider').style.setProperty('--p', p);
 
     var licht = !!val('licht');
     $('lightBtn').classList.toggle('on', licht);
@@ -251,12 +262,12 @@
   // vom Modul aufgerufen (erstes Laden und jede Änderung)
   function handleMessage(data) {
     var d = typeof data === 'string' ? JSON.parse(data) : data;
-    for (var k in d) { sxD[k] = d[k]; if (!(k === 'soll' && sxDrag)) delete sxPending[k]; }
+    for (var k in d) { sxD[k] = d[k]; if (!(k === 'soll' && sxDrag) && !(k === 'dauer' && sxDurDrag)) delete sxPending[k]; }
     sxRender();
   }
 
   function sxSoll(dlt) { var v = Math.max(40, Math.min(110, (val('soll') || 60) + dlt)); sxPending.soll = v; requestAction('soll', v); sxRender(); }
-  function sxDauer(dlt) { var v = Math.max(1, Math.min(15, (val('dauer') || 10) + dlt)); sxPending.dauer = v; requestAction('dauer', v); sxRender(); }
+  function sxDauer(dlt) { var v = Math.max(5, Math.min(240, (val('dauer') || 90) + dlt)); sxPending.dauer = v; requestAction('dauer', v); sxRender(); }
   function sxLicht() { var v = !val('licht'); sxPending.licht = v; requestAction('licht', v); sxRender(); }
   function sxMaster() { requestAction('master', !sxD.master); }
   function sxAktion(n) { requestAction('aktion', n); }
@@ -293,6 +304,16 @@
   }
   $('dial').addEventListener('pointerup', sxDialEnd);
   $('dial').addEventListener('pointercancel', sxDialEnd);
+
+  // ---- Dauer per Schieberegler ----
+  var sxDurDrag = false;
+  $('durSlider').addEventListener('input', function () {
+    sxDurDrag = true; sxPending.dauer = parseInt(this.value, 10); sxRender();
+  });
+  $('durSlider').addEventListener('change', function () {
+    sxDurDrag = false; sxPending.dauer = parseInt(this.value, 10);
+    requestAction('dauer', sxPending.dauer);                  // erst beim Loslassen senden
+  });
 
   sxPage('main');
   sxFit();
