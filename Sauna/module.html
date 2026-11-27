@@ -72,39 +72,98 @@
     </div>
 
     <div class="tabs card">
-      <button class="tab on">Finnisch</button>
-      <button class="tab" disabled>Bio<small>folgt</small></button>
-      <button class="tab" disabled>Dampf<small>folgt</small></button>
+      <button class="tab" id="tab0" onclick="sxModus(0)">Finnisch</button>
+      <button class="tab" id="tab1" onclick="sxModus(1)">Bio</button>
+      <button class="tab" id="tab2" onclick="sxModus(2)">Dampf</button>
     </div>
 
     <div class="card" style="flex:1; min-height:0; border-radius:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:10px 16px">
-      <div class="row" style="gap:10px">
-        <button class="round" style="width:56px; height:56px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
+
+      <!-- Temperatur (Finnisch groß, Bio kleiner) -->
+      <div id="tempBlock" class="row" style="gap:10px">
+        <button class="round" id="tDown" style="width:56px; height:56px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
         </button>
         <div id="dial" style="position:relative; width:230px; height:230px; touch-action:none; cursor:pointer">
-          <svg width="230" height="230" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur" aria-valuemin="40" aria-valuemax="110">
+          <svg width="100%" height="100%" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur">
             <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
             <circle id="ring" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
             <circle id="marker" cx="150" cy="150" r="13" fill="var(--bg)" stroke="var(--light)" stroke-width="4"/>
           </svg>
           <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; pointer-events:none">
-            <span style="font-size:13px; font-weight:500; color:var(--muted); letter-spacing:1.5px">IST</span>
-            <span class="num" style="font-size:74px; font-weight:600; line-height:1; color:var(--big)"><span id="ist">–</span><span style="font-size:36px; vertical-align:top; color:var(--light)">°</span></span>
-            <span style="font-size:16px; color:var(--light); font-weight:500">Ziel <span id="soll">–</span> °C</span>
+            <span id="istLabel" style="font-size:13px; font-weight:500; color:var(--muted); letter-spacing:1.5px">IST</span>
+            <span class="num" id="istWrap" style="font-size:74px; font-weight:600; line-height:1; color:var(--big)"><span id="ist">–</span><span style="font-size:.45em; vertical-align:top; color:var(--light)">°</span></span>
+            <span id="sollLine" style="font-size:16px; color:var(--light); font-weight:500">Ziel <span id="soll">–</span> °C</span>
           </div>
         </div>
-        <button class="round" style="width:56px; height:56px" aria-label="Zieltemperatur erhöhen" onclick="sxSoll(1)">
+        <button class="round" id="tUp" style="width:56px; height:56px" aria-label="Zieltemperatur erhöhen" onclick="sxSoll(1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         </button>
       </div>
+
+      <!-- Feuchte-Ring (nur Dampf) -->
+      <div id="humRingBlock" class="row hidden" style="gap:10px">
+        <button class="round" style="width:56px; height:56px" aria-label="Feuchte verringern" onclick="sxFeuchte(-1)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+        </button>
+        <div style="position:relative; width:160px; height:160px">
+          <svg width="160" height="160" viewBox="0 0 300 300" role="img" aria-label="Feuchteanzeige">
+            <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
+            <circle id="humRing" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
+          </svg>
+          <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px">
+            <span style="font-size:12px; font-weight:500; color:var(--muted); letter-spacing:1.5px">FEUCHTE</span>
+            <span class="num" id="humBig" style="font-size:54px; font-weight:600; line-height:1; color:var(--big)">–</span>
+            <span style="font-size:14px; color:var(--humText); font-weight:500">von 10</span>
+          </div>
+        </div>
+        <button class="round" style="width:56px; height:56px" aria-label="Feuchte erhöhen" onclick="sxFeuchte(1)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </button>
+      </div>
+
+      <!-- Statuszeile unter dem Ring -->
       <span id="heat" class="row" style="gap:6px; height:24px; font-size:14px; font-weight:600; color:var(--muted)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-1.6.7-2.7 1.6-3.6C10 9.6 11 11 11 11s1-2.5 1-8z"/><path d="M6 21h12"/></svg>
         <span id="heatText">Ofen aus</span>
       </span>
+
+      <!-- Feuchte-Leiste (nur Bio) -->
+      <div id="humBarBlock" class="hidden" style="width:100%; flex-direction:column; gap:6px; padding:10px 12px; background:var(--sub); border:1px solid var(--subB); border-radius:16px">
+        <div class="row between">
+          <span class="label">FEUCHTE · STUFE <span id="humLvl">–</span></span>
+          <span id="vapText" style="font-size:12px; font-weight:600; color:var(--muted)">Verdampfer aus</span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="round" style="width:44px; height:44px; flex-shrink:0; background:var(--btn)" aria-label="Feuchte verringern" onclick="sxFeuchte(-1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+          <div id="humSegs" style="flex:1; display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:4px"></div>
+          <button class="round" style="width:44px; height:44px; flex-shrink:0; background:var(--btn)" aria-label="Feuchte erhöhen" onclick="sxFeuchte(1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Temperatur kompakt (nur Dampf) -->
+      <div id="tempRow" class="hidden" style="width:100%; align-items:center; justify-content:space-between; padding:6px 6px 6px 16px; background:var(--sub); border:1px solid var(--subB); border-radius:16px">
+        <div style="display:flex; flex-direction:column">
+          <span class="label">TEMPERATUR</span>
+          <span class="num" style="font-size:22px; font-weight:600"><span id="istSmall">–</span> °C <span style="font-size:15px; font-weight:500; color:var(--light)">· Ziel <span id="sollSmall">–</span> °C</span></span>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="round" style="width:44px; height:44px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+          <button class="round" style="width:44px; height:44px" aria-label="Zieltemperatur erhöhen" onclick="sxSoll(1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="card" style="border-radius:18px; padding:10px 10px 10px 16px; display:flex; flex-direction:column; gap:6px">
+    <div class="row" style="gap:10px; align-items:stretch">
+    <div class="card" style="flex:1; min-width:0; border-radius:18px; padding:10px 10px 10px 16px; display:flex; flex-direction:column; gap:6px">
       <div class="row between" style="gap:8px">
         <div style="display:flex; flex-direction:column">
           <span class="label" id="timeLabel">DAUER</span>
@@ -125,6 +184,11 @@
       </div>
       <label for="durSlider" class="hidden">Dauer</label>
       <input id="durSlider" class="dur" type="range" min="5" max="240" step="5" value="90" aria-label="Dauer">
+    </div>
+    <button id="boostBtn" class="tile hidden" onclick="sxKurzzeit()" style="width:92px; height:auto; flex-direction:column; gap:4px; font-size:13px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 16c0-2 2-2 2-4s-2-2-2-4"/><path d="M12 16c0-2 2-2 2-4s-2-2-2-4"/><path d="M16 16c0-2 2-2 2-4s-2-2-2-4"/><path d="M6 20h14"/></svg>
+      <span id="boostText">Kurzzeit</span>
+    </button>
     </div>
 
     <div class="row" style="gap:8px; height:50px">
@@ -150,15 +214,29 @@
     </button>
   </div>
 
-  <!-- ================= TECHNIK ================= -->
+  <!-- ================= EINSTELLUNGEN & TECHNIK ================= -->
   <div id="pTech" class="hidden" style="flex-direction:column; gap:10px; height:100%">
     <div class="row" style="gap:12px; height:44px">
       <button class="round" style="width:44px; height:44px; background:var(--card); border-color:var(--border)" aria-label="Zurück" onclick="sxPage('main')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
-      <span class="num" style="font-size:24px; font-weight:700">Technik</span>
+      <span class="num" style="font-size:24px; font-weight:700">Einstellungen</span>
     </div>
+
+    <!-- Kommunikationstest -->
+    <div id="commCard" class="card" style="border-radius:18px; padding:14px 16px; display:flex; flex-direction:column; gap:10px">
+      <div class="row between">
+        <div style="display:flex; flex-direction:column; gap:2px">
+          <span style="font-size:15px; font-weight:600">Kommunikation mit dem Ofenmodul</span>
+          <span id="commState" style="font-size:13px; color:var(--muted)">–</span>
+        </div>
+        <button id="commBtn" onclick="sxKomm()" style="height:44px; padding:0 16px; border-radius:14px; font-size:14px; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text2)">Anhalten</button>
+      </div>
+      <span style="font-size:12px; line-height:1.5; color:var(--muted)">Sicherheitstest: Während einer Sitzung muss das Heizrelais etwa 6 s nach dem Anhalten abfallen. Nur unter Aufsicht verwenden.</span>
+    </div>
+
     <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-content:start; flex:1; min-height:0" id="techCards"></div>
+
     <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px">
       <button class="tile" id="masterBtn" onclick="sxMaster()">Master-Betrieb</button>
       <button class="tile" onclick="sxAktion(1)">Standby</button>
@@ -172,9 +250,15 @@
 <script>
   var sxD = {};          // letzter Stand aller Werte
   var sxPending = {};    // lokal geänderte Werte bis zur Rückmeldung
+  var sxDrag = false, sxDurDrag = false;
+  var SX_RANGE = [[40, 110], [40, 70], [40, 50]];   // Solltemperatur je Modus
+  var SX_NAMES = ['Klassisch', 'Bio', 'Dampf'];
 
   function $(id) { return document.getElementById(id); }
+  function sxShow(id, on, disp) { var e = $(id); e.classList.toggle('hidden', !on); if (on && disp) e.style.display = disp; }
   function sxFmt(min) { if (min === null || min === undefined) return '–'; return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0') + ' h'; }
+  function val(k) { return (k in sxPending) ? sxPending[k] : sxD[k]; }
+  function nz(v) { return v === null || v === undefined; }
 
   function sxFit() {
     var r = $('sx').getBoundingClientRect();
@@ -185,76 +269,129 @@
   if (window.ResizeObserver) new ResizeObserver(sxFit).observe($('sx'));
 
   function sxPage(p) {
-    $('pMain').classList.toggle('hidden', p !== 'main');
-    $('pTech').classList.toggle('hidden', p !== 'tech');
-    $('pMain').style.display = p === 'main' ? 'flex' : '';
-    $('pTech').style.display = p === 'tech' ? 'flex' : '';
+    sxShow('pMain', p === 'main', 'flex');
+    sxShow('pTech', p === 'tech', 'flex');
   }
 
-  function val(k) { return (k in sxPending) ? sxPending[k] : sxD[k]; }
-
   function sxRender() {
+    var m = val('modus') || 0;
     var running = sxD.phase === 'betrieb' || (sxD.status || '').indexOf('In Betrieb') === 0;
     var ist = sxD.ist, soll = val('soll'), dauer = val('dauer');
-    var heats = running && ist !== null && ist !== undefined && soll !== undefined && ist < soll - 1;
+    var ovenHeats = running && m !== 2 && !nz(ist) && !nz(soll) && ist < soll - 1;
+    var vapHeats = running && m !== 0 && !!sxD.verdampfer_heizt;
+    var feuchte = val('feuchte_soll') || 5;
 
+    // Status und Chips
     $('statusText').textContent = sxD.status || '–';
     $('dot').style.background = running ? 'var(--accent)' : 'var(--idle)';
-    $('ist').textContent = (ist === null || ist === undefined) ? '–' : ist;
-    $('soll').textContent = soll === undefined ? '–' : soll;
+    $('armChip').classList.toggle('on', !!sxD.start_erlaubt);
+    $('armText').textContent = sxD.start_erlaubt ? 'Fernstart frei' : 'Fernstart aus';
 
+    // Modus-Reiter
+    for (var t = 0; t < 3; t++) $('tab' + t).classList.toggle('on', t === m);
+
+    // Layout je Modus
+    sxShow('tempBlock', m !== 2, 'flex');
+    sxShow('humRingBlock', m === 2, 'flex');
+    sxShow('humBarBlock', m === 1, 'flex');
+    sxShow('tempRow', m === 2, 'flex');
+    sxShow('boostBtn', m !== 0, 'flex');
+    var big = m === 0;
+    $('dial').style.width = $('dial').style.height = big ? '230px' : '140px';
+    $('istWrap').style.fontSize = big ? '74px' : '44px';
+    $('istLabel').style.display = big ? '' : 'none';
+    $('sollLine').style.fontSize = big ? '16px' : '13px';
+    ['tDown', 'tUp'].forEach(function (b) { $(b).style.width = $(b).style.height = big ? '56px' : '52px'; });
+
+    // Temperatur
+    $('ist').textContent = nz(ist) ? '–' : ist;
+    $('istSmall').textContent = nz(ist) ? '–' : ist;
+    $('soll').textContent = nz(soll) ? '–' : soll;
+    $('sollSmall').textContent = nz(soll) ? '–' : soll;
     var frac = function (v) { return Math.max(0, Math.min(1, (v - 20) / 90)); };
-    $('ring').setAttribute('stroke-dasharray', (ist == null ? 0 : frac(ist) * 556).toFixed(1) + ' 742');
-    $('ring').setAttribute('stroke', heats ? 'var(--accent)' : (running ? 'var(--hold)' : 'var(--idle)'));
+    $('ring').setAttribute('stroke-dasharray', (nz(ist) ? 0 : frac(ist) * 556).toFixed(1) + ' 742');
+    $('ring').setAttribute('stroke', ovenHeats ? 'var(--accent)' : (running ? 'var(--hold)' : 'var(--idle)'));
     var a = (135 + frac(soll || 20) * 270) * Math.PI / 180;
     $('marker').setAttribute('cx', (150 + 118 * Math.cos(a)).toFixed(1));
     $('marker').setAttribute('cy', (150 + 118 * Math.sin(a)).toFixed(1));
-    $('heatText').textContent = heats ? 'Ofen heizt' : (running ? 'Temperatur erreicht' : 'Ofen aus');
-    $('heat').style.color = heats ? 'var(--accent)' : 'var(--muted)';
 
+    // Feuchte
+    var humCol = vapHeats ? 'var(--hum)' : (running ? 'var(--hold)' : 'var(--idle)');
+    $('humBig').textContent = feuchte;
+    $('humLvl').textContent = feuchte;
+    $('humRing').setAttribute('stroke-dasharray', (feuchte / 10 * 556).toFixed(1) + ' 742');
+    $('humRing').setAttribute('stroke', humCol);
+    var seg = '';
+    for (var i = 1; i <= 10; i++) seg += '<span style="height:22px; border-radius:5px; background:' + (i <= feuchte ? humCol : 'var(--track)') + '"></span>';
+    $('humSegs').innerHTML = seg;
+    $('vapText').textContent = vapHeats ? 'Verdampfer heizt' : (running ? 'Feuchte erreicht' : 'Verdampfer aus');
+    $('vapText').style.color = vapHeats ? 'var(--humText)' : 'var(--muted)';
+
+    // Statuszeile unter dem Ring
+    if (m === 2) {
+      $('heatText').textContent = vapHeats ? 'Verdampfer heizt' : (running ? 'Feuchte erreicht' : 'Verdampfer aus');
+      $('heat').style.color = vapHeats ? 'var(--humText)' : 'var(--muted)';
+    } else {
+      $('heatText').textContent = ovenHeats ? 'Ofen heizt' : (running ? 'Temperatur erreicht' : 'Ofen aus');
+      $('heat').style.color = ovenHeats ? 'var(--accent)' : 'var(--muted)';
+    }
+
+    // Zeit
     $('timeLabel').textContent = running ? 'RESTZEIT' : 'DAUER';
     $('timeBig').textContent = running ? sxFmt(sxD.restzeit) : sxFmt(dauer);
     $('timeSmall').textContent = running ? 'Dauer ' + sxFmt(dauer) : '';
     $('barWrap').style.visibility = running ? 'visible' : 'hidden';
     $('bar').style.width = (running && dauer) ? Math.round((sxD.restzeit || 0) / dauer * 100) + '%' : '0';
-    if (!sxDurDrag && dauer !== undefined) { $('durSlider').value = dauer; }
-    var p = ((($('durSlider').value) - 5) / 235 * 100).toFixed(1) + '%';
-    $('durSlider').style.setProperty('--p', p);
+    if (!sxDurDrag && !nz(dauer)) $('durSlider').value = dauer;
+    $('durSlider').style.setProperty('--p', ((($('durSlider').value) - 5) / 235 * 100).toFixed(1) + '%');
+    var boost = !!val('kurzzeit_soll');
+    $('boostBtn').classList.toggle('on', boost);
+    $('boostText').textContent = boost ? '15 min' : 'Kurzzeit';
 
+    // Licht, Hauptknopf
     var licht = !!val('licht');
     $('lightBtn').classList.toggle('on', licht);
     $('lightText').textContent = licht ? 'Licht an' : 'Licht aus';
-    $('armChip').classList.toggle('on', !!sxD.start_erlaubt);
-    $('armText').textContent = sxD.start_erlaubt ? 'Fernstart frei' : 'Fernstart aus';
-
     $('mainText').textContent = running ? 'Sitzung beenden' : 'Start nur an der Sauna';
     $('mainBtn').disabled = !running;
 
     // Favoriten
     var f = sxD.favoriten || [];
     var h = '';
-    for (var i = 0; i < f.length; i++) {
-      var on = f[i].soll === soll && f[i].dauer === dauer;
-      h += '<button class="fav' + (on ? ' on' : '') + '" onclick="sxFavApply(' + i + ')" oncontextmenu="sxFavDel(' + i + ');return false;">' +
-           '<b>Klassisch ' + f[i].soll + '°</b><i>' + sxFmt(f[i].dauer) + '</i></button>';
+    for (var k = 0; k < f.length; k++) {
+      var fm = f[k].modus || 0;
+      var on = fm === m && f[k].soll === soll && f[k].dauer === dauer && (fm === 0 || f[k].feuchte === feuchte);
+      var lab = SX_NAMES[fm] + ' ' + f[k].soll + '°' + (fm === 0 ? '' : ' · St. ' + f[k].feuchte);
+      h += '<button class="fav' + (on ? ' on' : '') + '" onclick="sxFavApply(' + k + ')" oncontextmenu="sxFavDel(' + k + ');return false;">' +
+           '<b>' + lab + '</b><i>' + sxFmt(f[k].dauer) + '</i></button>';
     }
     $('favs').innerHTML = h;
 
-    // Technik
+    // Einstellungen: Kommunikationstest
+    var komm = sxD.kommunikation !== false;
+    $('commState').textContent = !sxD.master ? 'Nur im Master-Betrieb wirksam' : (komm ? 'läuft' : 'angehalten seit ' + (sxD.pause_s || 0) + ' s');
+    $('commState').style.color = komm ? 'var(--muted)' : 'var(--warnT)';
+    $('commBtn').textContent = komm ? 'Anhalten' : 'Fortsetzen';
+    $('commBtn').style.background = komm ? 'var(--card)' : 'var(--warnBg)';
+    $('commBtn').style.borderColor = komm ? 'var(--border)' : 'var(--warnB)';
+    $('commBtn').style.color = komm ? 'var(--text2)' : 'var(--warnT)';
+    $('commCard').style.borderColor = komm ? 'var(--border)' : 'var(--warnB)';
+
+    // Einstellungen: Werte
     var cards = [
-      ['BETRIEB', [['Phase', sxD.phase], ['Master', sxD.master ? 'ein' : 'aus'], ['Start erlaubt', sxD.start_erlaubt ? 'ja' : 'nein'], ['Busfehler', sxD.fehler]]],
-      ['OFEN · 84', [['Status', sxD.ofen], ['Ist', ist == null ? '–' : ist + ' °C'], ['Soll', soll + ' °C'], ['Laufzeit', sxD.laufzeit == null ? '–' : sxD.laufzeit + ' min']]],
-      ['VERDAMPFER · 88', [['Status', sxD.verdampfer], ['Heizt', sxD.verdampfer_heizt ? 'ja' : 'nein'], ['Feuchte', sxD.feuchtestufe == null ? '–' : sxD.feuchtestufe], ['Kurzzeit', sxD.kurzzeit == null ? '–' : sxD.kurzzeit + ' min']]],
-      ['ZÄHLER', [['Betriebsstunden', sxD.betriebsstunden == null ? '–' : sxD.betriebsstunden + ' h'], ['Sitzungen', sxD.sitzungen == null ? '–' : sxD.sitzungen]]]
+      ['BETRIEB', [['Phase', sxD.phase], ['Modus', SX_NAMES[m]], ['Start erlaubt', sxD.start_erlaubt ? 'ja' : 'nein'], ['Busfehler', sxD.fehler]]],
+      ['OFEN · 84', [['Status', sxD.ofen], ['Ist', nz(ist) ? '–' : ist + ' °C'], ['Soll', nz(soll) ? '–' : soll + ' °C'], ['Laufzeit', nz(sxD.laufzeit) ? '–' : sxD.laufzeit + ' min']]],
+      ['VERDAMPFER · 88', [['Status', sxD.verdampfer], ['Heizt', sxD.verdampfer_heizt ? 'ja' : 'nein'], ['Stufe (Bus)', nz(sxD.feuchtestufe) ? '–' : sxD.feuchtestufe], ['Kurzzeit', nz(sxD.kurzzeit) ? '–' : sxD.kurzzeit + ' min']]],
+      ['ZÄHLER', [['Betriebsstunden', nz(sxD.betriebsstunden) ? '–' : sxD.betriebsstunden + ' h'], ['Sitzungen', nz(sxD.sitzungen) ? '–' : sxD.sitzungen]]]
     ];
-    var t = '';
+    var tc = '';
     cards.forEach(function (c) {
-      t += '<div class="card" style="border-radius:16px; padding:12px 14px; display:flex; flex-direction:column; gap:6px">' +
-           '<span style="font-size:12px; font-weight:600; color:var(--light); letter-spacing:1.2px">' + c[0] + '</span>';
-      c[1].forEach(function (r) { t += '<div class="kv"><span>' + r[0] + '</span><span class="num">' + (r[1] === undefined || r[1] === null ? '–' : r[1]) + '</span></div>'; });
-      t += '</div>';
+      tc += '<div class="card" style="border-radius:16px; padding:12px 14px; display:flex; flex-direction:column; gap:6px">' +
+            '<span style="font-size:12px; font-weight:600; color:var(--light); letter-spacing:1.2px">' + c[0] + '</span>';
+      c[1].forEach(function (r) { tc += '<div class="kv"><span>' + r[0] + '</span><span class="num">' + (nz(r[1]) ? '–' : r[1]) + '</span></div>'; });
+      tc += '</div>';
     });
-    $('techCards').innerHTML = t;
+    $('techCards').innerHTML = tc;
     $('masterBtn').classList.toggle('on', !!sxD.master);
     $('masterBtn').textContent = sxD.master ? 'Master-Betrieb ein' : 'Master-Betrieb aus';
   }
@@ -262,58 +399,69 @@
   // vom Modul aufgerufen (erstes Laden und jede Änderung)
   function handleMessage(data) {
     var d = typeof data === 'string' ? JSON.parse(data) : data;
-    for (var k in d) { sxD[k] = d[k]; if (!(k === 'soll' && sxDrag) && !(k === 'dauer' && sxDurDrag)) delete sxPending[k]; }
+    for (var k in d) {
+      sxD[k] = d[k];
+      if (!(k === 'soll' && sxDrag) && !(k === 'dauer' && sxDurDrag)) delete sxPending[k];
+    }
     sxRender();
   }
 
-  function sxSoll(dlt) { var v = Math.max(40, Math.min(110, (val('soll') || 60) + dlt)); sxPending.soll = v; requestAction('soll', v); sxRender(); }
+  // ---- Bedienung ----
+  function sxSetSoll(v) {
+    var r = SX_RANGE[val('modus') || 0];
+    v = Math.max(r[0], Math.min(r[1], v));
+    sxPending.soll = v; return v;
+  }
+  function sxSoll(dlt) { requestAction('soll', sxSetSoll((val('soll') || 60) + dlt)); sxRender(); }
+  function sxModus(m) {
+    sxPending.modus = m; requestAction('modus', m);
+    var r = SX_RANGE[m], s = val('soll');
+    if (!nz(s) && (s < r[0] || s > r[1])) requestAction('soll', sxSetSoll(s));
+    sxRender();
+  }
+  function sxFeuchte(dlt) { var v = Math.max(1, Math.min(10, (val('feuchte_soll') || 5) + dlt)); sxPending.feuchte_soll = v; requestAction('feuchte_soll', v); sxRender(); }
+  function sxKurzzeit() { var v = !val('kurzzeit_soll'); sxPending.kurzzeit_soll = v; requestAction('kurzzeit_soll', v); sxRender(); }
   function sxDauer(dlt) { var v = Math.max(5, Math.min(240, (val('dauer') || 90) + dlt)); sxPending.dauer = v; requestAction('dauer', v); sxRender(); }
   function sxLicht() { var v = !val('licht'); sxPending.licht = v; requestAction('licht', v); sxRender(); }
   function sxMaster() { requestAction('master', !sxD.master); }
+  function sxKomm() { requestAction('kommunikation', sxD.kommunikation === false); }
   function sxAktion(n) { requestAction('aktion', n); }
   function sxMain() { if (!$('mainBtn').disabled) requestAction('aktion', 3); }
-  function sxFavApply(i) { var f = sxD.favoriten[i]; sxPending.soll = f.soll; sxPending.dauer = f.dauer; requestAction('fav_apply', i); sxRender(); }
-  function sxFavAdd() { requestAction('fav_add', JSON.stringify({ soll: val('soll'), dauer: val('dauer') })); }
+  function sxFavApply(i) {
+    var f = sxD.favoriten[i];
+    sxPending.modus = f.modus || 0; sxPending.soll = f.soll; sxPending.dauer = f.dauer;
+    if (f.modus) sxPending.feuchte_soll = f.feuchte;
+    requestAction('fav_apply', i); sxRender();
+  }
+  function sxFavAdd() {
+    requestAction('fav_add', JSON.stringify({ modus: val('modus') || 0, soll: val('soll'), dauer: val('dauer'), feuchte: val('feuchte_soll') || 5 }));
+  }
   function sxFavDel(i) { if (confirm('Favorit löschen?')) requestAction('fav_del', i); }
 
-
   // ---- Solltemperatur durch Ziehen am Ring ----
-  var sxDrag = false;
   function sxDialValue(ev) {
     var r = $('dial').getBoundingClientRect();
     var dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
-    var ang = Math.atan2(dy, dx) * 180 / Math.PI;           // 0° = rechts, im Uhrzeigersinn
-    var rel = (ang - 135 + 360) % 360;                        // 0..360 ab Ringanfang (unten links)
-    if (rel > 270) rel = (rel > 315) ? 0 : 270;               // Lücke unten: zum näheren Ende
-    var t = Math.round(20 + rel / 270 * 90);
-    return Math.max(40, Math.min(110, t));
+    var rel = (Math.atan2(dy, dx) * 180 / Math.PI - 135 + 360) % 360;
+    if (rel > 270) rel = (rel > 315) ? 0 : 270;
+    return Math.round(20 + rel / 270 * 90);
   }
   $('dial').addEventListener('pointerdown', function (ev) {
     sxDrag = true; $('dial').setPointerCapture(ev.pointerId);
-    sxPending.soll = sxDialValue(ev); sxRender(); ev.preventDefault();
+    sxSetSoll(sxDialValue(ev)); sxRender(); ev.preventDefault();
   });
   $('dial').addEventListener('pointermove', function (ev) {
     if (!sxDrag) return;
-    var v = sxDialValue(ev);
-    if (v !== sxPending.soll) { sxPending.soll = v; sxRender(); }
+    var before = sxPending.soll; sxSetSoll(sxDialValue(ev));
+    if (sxPending.soll !== before) sxRender();
   });
-  function sxDialEnd(ev) {
-    if (!sxDrag) return;
-    sxDrag = false;
-    requestAction('soll', sxPending.soll);                    // erst beim Loslassen senden
-  }
+  function sxDialEnd() { if (!sxDrag) return; sxDrag = false; requestAction('soll', sxPending.soll); }
   $('dial').addEventListener('pointerup', sxDialEnd);
   $('dial').addEventListener('pointercancel', sxDialEnd);
 
   // ---- Dauer per Schieberegler ----
-  var sxDurDrag = false;
-  $('durSlider').addEventListener('input', function () {
-    sxDurDrag = true; sxPending.dauer = parseInt(this.value, 10); sxRender();
-  });
-  $('durSlider').addEventListener('change', function () {
-    sxDurDrag = false; sxPending.dauer = parseInt(this.value, 10);
-    requestAction('dauer', sxPending.dauer);                  // erst beim Loslassen senden
-  });
+  $('durSlider').addEventListener('input', function () { sxDurDrag = true; sxPending.dauer = parseInt(this.value, 10); sxRender(); });
+  $('durSlider').addEventListener('change', function () { sxDurDrag = false; sxPending.dauer = parseInt(this.value, 10); requestAction('dauer', sxPending.dauer); });
 
   sxPage('main');
   sxFit();
