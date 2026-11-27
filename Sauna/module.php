@@ -49,7 +49,7 @@ class Sauna extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('Topic', 'sauna');
-        $this->RegisterAttributeString('Favoriten', '[{"soll":90,"dauer":15},{"soll":70,"dauer":10}]');
+        $this->RegisterAttributeString('Favoriten', '[{"modus":0,"soll":90,"dauer":60},{"modus":0,"soll":75,"dauer":90},{"modus":1,"soll":60,"dauer":60,"feuchte":3},null]');
         // eigene Kachel in der Kachel-Visualisierung (HTML-SDK)
         $this->SetVisualizationType(1);
     }
@@ -70,8 +70,21 @@ class Sauna extends IPSModule
                 $d[$ident] = GetValue($id);
             }
         }
-        $d['favoriten'] = json_decode($this->ReadAttributeString('Favoriten'), true) ?: [];
+        $d['favoriten'] = $this->favoriten();
         return json_encode($d);
+    }
+
+    private function favoriten(): array
+    {
+        $fav = json_decode($this->ReadAttributeString('Favoriten'), true);
+        if (!is_array($fav)) {
+            $fav = [];
+        }
+        $fav = array_values($fav);
+        while (count($fav) < 4) {
+            $fav[] = null;
+        }
+        return array_slice($fav, 0, 4);
     }
 
     private function kachelAktualisieren()
@@ -161,31 +174,28 @@ class Sauna extends IPSModule
     // ---------- Bedienung in Symcon ----------
     public function RequestAction($Ident, $Value)
     {
-        // Favoriten (nur von der Kachel)
-        if ($Ident == 'fav_apply' || $Ident == 'fav_add' || $Ident == 'fav_del') {
-            $fav = json_decode($this->ReadAttributeString('Favoriten'), true) ?: [];
-            if ($Ident == 'fav_apply' && isset($fav[(int) $Value])) {
-                $f = $fav[(int) $Value];
-                $cmd = ['soll' => (int) $f['soll'], 'dauer' => (int) $f['dauer']];
+        // Favoriten (nur von der Kachel): 4 feste Plätze
+        if ($Ident == 'fav_apply' || $Ident == 'fav_set') {
+            $fav = $this->favoriten();
+            if ($Ident == 'fav_apply') {
+                $f = $fav[(int) $Value] ?? null;
+                if (!is_array($f)) {
+                    return;
+                }
                 $m = (int) ($f['modus'] ?? 0);
-                $cmd['modus'] = self::MODI[$m] ?? 'finnisch';
+                $cmd = ['modus' => self::MODI[$m] ?? 'finnisch', 'soll' => (int) $f['soll'], 'dauer' => (int) $f['dauer']];
                 if ($m > 0 && isset($f['feuchte'])) {
                     $cmd['feuchte_soll'] = (int) $f['feuchte'];
                 }
                 $this->senden($cmd);
                 return;
             }
-            if ($Ident == 'fav_add') {
-                $neu = json_decode((string) $Value, true);
-                if (is_array($neu) && isset($neu['soll'], $neu['dauer']) && count($fav) < 8) {
-                    $fav[] = ['soll' => (int) $neu['soll'], 'dauer' => (int) $neu['dauer'],
-                              'modus' => (int) ($neu['modus'] ?? 0), 'feuchte' => (int) ($neu['feuchte'] ?? 0)];
-                }
+            $neu = json_decode((string) $Value, true);
+            if (is_array($neu) && isset($neu['slot'], $neu['soll'], $neu['dauer']) && $neu['slot'] >= 0 && $neu['slot'] < 4) {
+                $fav[(int) $neu['slot']] = ['modus' => (int) ($neu['modus'] ?? 0), 'soll' => (int) $neu['soll'],
+                                            'dauer' => (int) $neu['dauer'], 'feuchte' => (int) ($neu['feuchte'] ?? 5)];
+                $this->WriteAttributeString('Favoriten', json_encode($fav));
             }
-            if ($Ident == 'fav_del' && isset($fav[(int) $Value])) {
-                array_splice($fav, (int) $Value, 1);
-            }
-            $this->WriteAttributeString('Favoriten', json_encode(array_values($fav)));
             $this->kachelAktualisieren();
             return;
         }
