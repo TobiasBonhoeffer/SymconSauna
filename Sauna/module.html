@@ -39,6 +39,9 @@
   .sx .fav { flex-shrink:0; height:46px; padding:0 14px; border-radius:14px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px;
              background:var(--card); border:1px solid var(--border); color:var(--text); }
   .sx .fav.on { background:var(--onBg); border-color:var(--accent); }
+  .sx .fav { width:100%; height:52px; padding:0 10px; }
+  .sx .fav.empty { border-style:dashed; color:var(--muted); align-items:center; }
+  .sx .fav.saved { border-color:var(--light); background:var(--onBg); }
   .sx .fav b { font-size:14px; font-weight:600; white-space:nowrap; }
   .sx .fav i { font-style:normal; font-size:11px; color:var(--muted); white-space:nowrap; }
 </style>
@@ -48,11 +51,11 @@
 
   <!-- ================= HAUPTSEITE ================= -->
   <div id="pMain" style="display:flex; flex-direction:column; gap:10px; height:100%">
-    <div class="row between" style="height:44px">
-      <span class="num" style="font-size:26px; font-weight:700; letter-spacing:.5px">Sauna</span>
-      <button class="round" style="width:44px; height:44px; background:var(--card); border-color:var(--border); color:var(--muted)" aria-label="Technik-Seite öffnen" onclick="sxPage('tech')">
+    <div class="row" style="height:44px; gap:12px">
+      <button id="gearBtn" type="button" class="round" style="width:44px; height:44px; background:var(--card); border-color:var(--border); color:var(--muted)" aria-label="Einstellungen öffnen">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
+      <span class="num" style="font-size:26px; font-weight:700; letter-spacing:.5px">Sauna</span>
     </div>
 
     <div class="row between" style="gap:8px; height:32px">
@@ -191,12 +194,7 @@
     </button>
     </div>
 
-    <div class="row" style="gap:8px; height:50px">
-      <div id="favs" class="row" style="flex:1; min-width:0; gap:8px; overflow-x:auto"></div>
-      <button aria-label="Aktuelle Einstellung als Favorit speichern" onclick="sxFavAdd()" style="width:46px; height:46px; flex-shrink:0; border-radius:14px; background:var(--card); border:1px dashed var(--onB); color:var(--light); display:flex; align-items:center; justify-content:center">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>
-      </button>
-    </div>
+    <div id="favs" style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; height:52px; touch-action:manipulation; user-select:none; -webkit-user-select:none"></div>
 
     <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px">
       <button class="tile" id="lightBtn" onclick="sxLicht()">
@@ -253,6 +251,7 @@
   var sxDrag = false, sxDurDrag = false;
   var SX_RANGE = [[40, 110], [40, 70], [40, 50]];   // Solltemperatur je Modus
   var SX_NAMES = ['Klassisch', 'Bio', 'Dampf'];
+  var sxFavPress = null, sxFavTimer = null, sxFavLong = false, sxFavFlash = -1, sxFavFlashAt = 0;
 
   function $(id) { return document.getElementById(id); }
   function sxShow(id, on, disp) { var e = $(id); e.classList.toggle('hidden', !on); if (on && disp) e.style.display = disp; }
@@ -355,17 +354,25 @@
     $('mainText').textContent = running ? 'Sitzung beenden' : 'Start nur an der Sauna';
     $('mainBtn').disabled = !running;
 
-    // Favoriten
-    var f = sxD.favoriten || [];
-    var h = '';
-    for (var k = 0; k < f.length; k++) {
-      var fm = f[k].modus || 0;
-      var on = fm === m && f[k].soll === soll && f[k].dauer === dauer && (fm === 0 || f[k].feuchte === feuchte);
-      var lab = SX_NAMES[fm] + ' ' + f[k].soll + '°' + (fm === 0 ? '' : ' · St. ' + f[k].feuchte);
-      h += '<button class="fav' + (on ? ' on' : '') + '" onclick="sxFavApply(' + k + ')" oncontextmenu="sxFavDel(' + k + ');return false;">' +
-           '<b>' + lab + '</b><i>' + sxFmt(f[k].dauer) + '</i></button>';
+    // Favoriten: 4 feste Plätze (kurz tippen = aktivieren, lang drücken = speichern)
+    if (sxFavPress === null) {
+      var f = sxD.favoriten || [];
+      var h = '';
+      for (var k = 0; k < 4; k++) {
+        var e = f[k];
+        if (sxFavFlash === k && Date.now() - sxFavFlashAt < 1500) {
+          h += '<button type="button" class="fav saved" data-i="' + k + '"><b>✓</b><i>gespeichert</i></button>';
+        } else if (!e) {
+          h += '<button type="button" class="fav empty" data-i="' + k + '"><b>Platz ' + (k + 1) + '</b><i>lang drücken</i></button>';
+        } else {
+          var fm = e.modus || 0;
+          var on = fm === m && e.soll === soll && e.dauer === dauer && (fm === 0 || e.feuchte === feuchte);
+          h += '<button type="button" class="fav' + (on ? ' on' : '') + '" data-i="' + k + '"><b>' + SX_NAMES[fm] + ' ' + e.soll + '°</b><i>' +
+               (fm === 0 ? '' : 'St. ' + e.feuchte + ' · ') + sxFmt(e.dauer) + '</i></button>';
+        }
+      }
+      $('favs').innerHTML = h;
     }
-    $('favs').innerHTML = h;
 
     // Einstellungen: Kommunikationstest
     var komm = sxD.kommunikation !== false;
@@ -428,15 +435,42 @@
   function sxAktion(n) { requestAction('aktion', n); }
   function sxMain() { if (!$('mainBtn').disabled) requestAction('aktion', 3); }
   function sxFavApply(i) {
-    var f = sxD.favoriten[i];
+    var f = (sxD.favoriten || [])[i];
+    if (!f) return;
     sxPending.modus = f.modus || 0; sxPending.soll = f.soll; sxPending.dauer = f.dauer;
     if (f.modus) sxPending.feuchte_soll = f.feuchte;
     requestAction('fav_apply', i); sxRender();
   }
-  function sxFavAdd() {
-    requestAction('fav_add', JSON.stringify({ modus: val('modus') || 0, soll: val('soll'), dauer: val('dauer'), feuchte: val('feuchte_soll') || 5 }));
+  function sxFavSave(i) {
+    var neu = { slot: i, modus: val('modus') || 0, soll: val('soll'), dauer: val('dauer'), feuchte: val('feuchte_soll') || 5 };
+    if (!sxD.favoriten) sxD.favoriten = [];
+    sxD.favoriten[i] = { modus: neu.modus, soll: neu.soll, dauer: neu.dauer, feuchte: neu.feuchte };
+    sxFavFlash = i; sxFavFlashAt = Date.now();
+    requestAction('fav_set', JSON.stringify(neu));
+    setTimeout(sxRender, 1600);
   }
-  function sxFavDel(i) { if (confirm('Favorit löschen?')) requestAction('fav_del', i); }
+  // kurz tippen / lang drücken
+  $('favs').addEventListener('pointerdown', function (ev) {
+    var b = ev.target.closest('[data-i]'); if (!b) return;
+    sxFavPress = parseInt(b.getAttribute('data-i'), 10); sxFavLong = false;
+    $('favs').setPointerCapture(ev.pointerId);
+    sxFavTimer = setTimeout(function () {
+      sxFavLong = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      var i = sxFavPress; sxFavPress = null; sxFavSave(i); sxRender();
+    }, 700);
+  });
+  function sxFavUp(cancel) {
+    clearTimeout(sxFavTimer);
+    if (sxFavPress !== null && !sxFavLong && !cancel) sxFavApply(sxFavPress);
+    sxFavPress = null;
+  }
+  $('favs').addEventListener('pointerup', function () { sxFavUp(false); });
+  $('favs').addEventListener('pointercancel', function () { sxFavUp(true); });
+  $('favs').addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+
+  // Einstellungen öffnen (auch per Tastatur)
+  $('gearBtn').addEventListener('click', function () { sxPage('tech'); });
 
   // ---- Solltemperatur durch Ziehen am Ring ----
   function sxDialValue(ev) {
