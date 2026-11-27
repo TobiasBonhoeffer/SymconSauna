@@ -235,7 +235,7 @@ class Sauna extends IPSModule
             // Name => [Min, Max, Schritt, Suffix, Icon]
             'Sauna.Grad'    => [0, 120, 1, ' °C', 'Temperature'],
             'Sauna.Soll'    => [40, 110, 1, ' °C', 'Temperature'],
-            'Sauna.Dauer'   => [1, 15, 1, ' min', 'Clock'],
+            'Sauna.Dauer'   => [5, 240, 5, ' min', 'Clock'],
             'Sauna.Minuten' => [0, 600, 1, ' min', 'Clock'],
             'Sauna.Stunden' => [0, 100000, 1, ' h', 'Clock'],
         ];
