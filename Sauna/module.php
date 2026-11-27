@@ -42,6 +42,34 @@ class Sauna extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('Topic', 'sauna');
+        $this->RegisterAttributeString('Favoriten', '[{"soll":90,"dauer":15},{"soll":70,"dauer":10}]');
+        // eigene Kachel in der Kachel-Visualisierung (HTML-SDK)
+        $this->SetVisualizationType(1);
+    }
+
+    // ---------- Kachel ----------
+    public function GetVisualizationTile()
+    {
+        $html = file_get_contents(__DIR__ . '/module.html');
+        return $html . '<script>handleMessage(' . json_encode($this->vollstaendig()) . ');</script>';
+    }
+
+    private function vollstaendig(): string
+    {
+        $d = [];
+        foreach (self::FELDER as $ident => $f) {
+            $id = @$this->GetIDForIdent($ident);
+            if ($id) {
+                $d[$ident] = GetValue($id);
+            }
+        }
+        $d['favoriten'] = json_decode($this->ReadAttributeString('Favoriten'), true) ?: [];
+        return json_encode($d);
+    }
+
+    private function kachelAktualisieren()
+    {
+        $this->UpdateVisualizationValue($this->vollstaendig());
     }
 
     public function ApplyChanges()
@@ -111,12 +139,34 @@ class Sauna extends IPSModule
                 $this->SetValue($ident, $v);
             }
         }
+        $this->kachelAktualisieren();
         return '';
     }
 
     // ---------- Bedienung in Symcon ----------
     public function RequestAction($Ident, $Value)
     {
+        // Favoriten (nur von der Kachel)
+        if ($Ident == 'fav_apply' || $Ident == 'fav_add' || $Ident == 'fav_del') {
+            $fav = json_decode($this->ReadAttributeString('Favoriten'), true) ?: [];
+            if ($Ident == 'fav_apply' && isset($fav[(int) $Value])) {
+                $f = $fav[(int) $Value];
+                $this->senden(['soll' => (int) $f['soll'], 'dauer' => (int) $f['dauer']]);
+                return;
+            }
+            if ($Ident == 'fav_add') {
+                $neu = json_decode((string) $Value, true);
+                if (is_array($neu) && isset($neu['soll'], $neu['dauer']) && count($fav) < 8) {
+                    $fav[] = ['soll' => (int) $neu['soll'], 'dauer' => (int) $neu['dauer']];
+                }
+            }
+            if ($Ident == 'fav_del' && isset($fav[(int) $Value])) {
+                array_splice($fav, (int) $Value, 1);
+            }
+            $this->WriteAttributeString('Favoriten', json_encode(array_values($fav)));
+            $this->kachelAktualisieren();
+            return;
+        }
         if (!isset(self::FELDER[$Ident]) || !self::FELDER[$Ident][3]) {
             throw new Exception('Variable ist nicht schaltbar: ' . $Ident);
         }
