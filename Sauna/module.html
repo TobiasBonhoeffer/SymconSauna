@@ -293,21 +293,23 @@
     sxShow('tempRow', m === 2, 'flex');
     sxShow('boostBtn', m !== 0, 'flex');
     var big = m === 0;
-    $('dial').style.width = $('dial').style.height = big ? '305px' : '160px';
-    $('tempBlock').style.gap = big ? '0' : '10px';
+    var ov = m !== 2;   // Finnisch und Bio: Knöpfe in der Ringöffnung, Status im Ring
+    $('dial').style.width = $('dial').style.height = big ? '305px' : '210px';
+    $('tempBlock').style.gap = ov ? '0' : '10px';
     ['tDown', 'tUp'].forEach(function (b, i) {
       var e = $(b);
-      e.style.position = big ? 'absolute' : 'static';
-      e.style.bottom = big ? '4px' : '';
-      e.style.left = (big && i === 0) ? '4px' : '';
-      e.style.right = (big && i === 1) ? '4px' : '';
+      e.style.position = ov ? 'absolute' : 'static';
+      e.style.bottom = ov ? (big ? '4px' : '0') : '';
+      e.style.left = (ov && i === 0) ? (big ? '4px' : '0') : '';
+      e.style.right = (ov && i === 1) ? (big ? '4px' : '0') : '';
+      e.style.width = e.style.height = big ? '56px' : '48px';
     });
-    $('heatIn').style.display = big ? '' : 'none';
-    sxShow('heat', !big, 'flex');
-    $('istWrap').style.fontSize = big ? '92px' : '50px';
-    $('istLabel').style.display = big ? '' : 'none';
-    $('sollLine').style.fontSize = big ? '18px' : '13px';
-    ['tDown', 'tUp'].forEach(function (b) { $(b).style.width = $(b).style.height = big ? '56px' : '52px'; });
+    $('heatIn').style.display = ov ? '' : 'none';
+    sxShow('heat', !ov, 'flex');
+    $('istWrap').style.fontSize = big ? '92px' : '62px';
+    $('istLabel').style.display = '';
+    $('sollLine').style.fontSize = big ? '18px' : '15px';
+    $('heatIn').style.fontSize = big ? '14px' : '13px';
 
     // Temperatur
     $('ist').textContent = nz(ist) ? '–' : ist;
