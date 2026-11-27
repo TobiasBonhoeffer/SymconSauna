@@ -51,11 +51,11 @@
 
   <!-- ================= HAUPTSEITE ================= -->
   <div id="pMain" style="display:flex; flex-direction:column; gap:10px; height:100%">
-    <div class="row" style="height:44px; gap:12px">
-      <button id="gearBtn" type="button" class="round" style="width:44px; height:44px; background:var(--card); border-color:var(--border); color:var(--muted)" aria-label="Einstellungen öffnen">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-      </button>
-      <span class="num" style="font-size:26px; font-weight:700; letter-spacing:.5px">Sauna</span>
+
+    <div class="tabs card">
+      <button class="tab" id="tab0" onclick="sxModus(0)">Finnisch</button>
+      <button class="tab" id="tab1" onclick="sxModus(1)">Bio</button>
+      <button class="tab" id="tab2" onclick="sxModus(2)">Dampf</button>
     </div>
 
     <div class="row between" style="gap:8px; height:32px">
@@ -74,11 +74,6 @@
       </div>
     </div>
 
-    <div class="tabs card">
-      <button class="tab" id="tab0" onclick="sxModus(0)">Finnisch</button>
-      <button class="tab" id="tab1" onclick="sxModus(1)">Bio</button>
-      <button class="tab" id="tab2" onclick="sxModus(2)">Dampf</button>
-    </div>
 
     <div class="card" style="flex:1; min-height:0; border-radius:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:10px 16px">
 
@@ -87,7 +82,7 @@
         <button class="round" id="tDown" style="width:56px; height:56px" aria-label="Zieltemperatur senken" onclick="sxSoll(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
         </button>
-        <div id="dial" style="position:relative; width:230px; height:230px; touch-action:none; cursor:pointer">
+        <div id="dial" style="position:relative; width:260px; height:260px; touch-action:none; cursor:pointer">
           <svg width="100%" height="100%" viewBox="0 0 300 300" role="slider" aria-label="Solltemperatur">
             <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
             <circle id="ring" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
@@ -109,14 +104,14 @@
         <button class="round" style="width:56px; height:56px" aria-label="Feuchte verringern" onclick="sxFeuchte(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
         </button>
-        <div style="position:relative; width:160px; height:160px">
-          <svg width="160" height="160" viewBox="0 0 300 300" role="img" aria-label="Feuchteanzeige">
+        <div style="position:relative; width:190px; height:190px">
+          <svg width="190" height="190" viewBox="0 0 300 300" role="img" aria-label="Feuchteanzeige">
             <circle cx="150" cy="150" r="118" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round" stroke-dasharray="556 742" transform="rotate(135 150 150)"/>
             <circle id="humRing" cx="150" cy="150" r="118" fill="none" stroke="var(--idle)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 742" transform="rotate(135 150 150)"/>
           </svg>
           <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px">
             <span style="font-size:12px; font-weight:500; color:var(--muted); letter-spacing:1.5px">FEUCHTE</span>
-            <span class="num" id="humBig" style="font-size:54px; font-weight:600; line-height:1; color:var(--big)">–</span>
+            <span class="num" id="humBig" style="font-size:62px; font-weight:600; line-height:1; color:var(--big)">–</span>
             <span style="font-size:14px; color:var(--humText); font-weight:500">von 10</span>
           </div>
         </div>
@@ -201,9 +196,9 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>
         <span id="lightText">Licht</span>
       </button>
-      <button class="tile" disabled title="Fernstart-Freigabe nur am Panel an der Sauna">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
-        <span>Freigabe am Panel</span>
+      <button class="tile" id="gearBtn" type="button" aria-label="Einstellungen öffnen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        <span>Einstellungen</span>
       </button>
     </div>
 
@@ -241,6 +236,7 @@
       <button class="tile" onclick="sxAktion(2)">Bereit</button>
       <button class="tile" onclick="sxAktion(3)">Ausschalten</button>
     </div>
+    <button class="tile" id="backBtn" type="button" style="flex-shrink:0; background:var(--accent); border:none; color:var(--onAccent)">Zurück zur Sauna</button>
   </div>
  </div>
 </div>
@@ -296,8 +292,8 @@
     sxShow('tempRow', m === 2, 'flex');
     sxShow('boostBtn', m !== 0, 'flex');
     var big = m === 0;
-    $('dial').style.width = $('dial').style.height = big ? '230px' : '140px';
-    $('istWrap').style.fontSize = big ? '74px' : '44px';
+    $('dial').style.width = $('dial').style.height = big ? '260px' : '160px';
+    $('istWrap').style.fontSize = big ? '84px' : '50px';
     $('istLabel').style.display = big ? '' : 'none';
     $('sollLine').style.fontSize = big ? '16px' : '13px';
     ['tDown', 'tUp'].forEach(function (b) { $(b).style.width = $(b).style.height = big ? '56px' : '52px'; });
@@ -471,6 +467,7 @@
 
   // Einstellungen öffnen (auch per Tastatur)
   $('gearBtn').addEventListener('click', function () { sxPage('tech'); });
+  $('backBtn').addEventListener('click', function () { sxPage('main'); });
 
   // ---- Solltemperatur durch Ziehen am Ring ----
   function sxDialValue(ev) {
