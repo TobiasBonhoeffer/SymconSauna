@@ -38,6 +38,7 @@ class Sauna extends IPSModule
         'kurzzeit_soll'    => ['Kurzzeitbetrieb',   0, '~Switch',       true,  22],
         'kommunikation'    => ['Kommunikation Ofenmodul', 0, '~Switch', true,  23],
         'pause_s'          => ['Kommunikation angehalten seit', 1, 'Sauna.Sekunden', false, 24],
+        'ofen_heizt'       => ['Ofen heizt',        0, '~Switch',       false, 25],
     ];
 
     private const MODI = [0 => 'finnisch', 1 => 'bio', 2 => 'dampf'];
@@ -76,11 +77,11 @@ class Sauna extends IPSModule
 
     private function favoriten(): array
     {
-        $fav = json_decode($this->ReadAttributeString('Favoriten'), true);
+        // Favoriten werden im ESP gespeichert (gemeinsam für Symcon, Weboberfläche und Panel)
+        $fav = json_decode($this->GetBuffer('favoriten'), true);
         if (!is_array($fav)) {
             $fav = [];
         }
-        $fav = array_values($fav);
         while (count($fav) < 4) {
             $fav[] = null;
         }
@@ -145,6 +146,9 @@ class Sauna extends IPSModule
             return '';
         }
         $this->SendDebug('Empfang', json_encode($werte), 0);
+        if (isset($werte['favoriten']) && is_array($werte['favoriten'])) {
+            $this->SetBuffer('favoriten', json_encode($werte['favoriten']));
+        }
 
         foreach (self::FELDER as $ident => $f) {
             if ($ident == 'aktion' || !array_key_exists($ident, $werte) || $werte[$ident] === null) {
@@ -174,29 +178,18 @@ class Sauna extends IPSModule
     // ---------- Bedienung in Symcon ----------
     public function RequestAction($Ident, $Value)
     {
-        // Favoriten (nur von der Kachel): 4 feste Plätze
-        if ($Ident == 'fav_apply' || $Ident == 'fav_set') {
-            $fav = $this->favoriten();
-            if ($Ident == 'fav_apply') {
-                $f = $fav[(int) $Value] ?? null;
-                if (!is_array($f)) {
-                    return;
-                }
-                $m = (int) ($f['modus'] ?? 0);
-                $cmd = ['modus' => self::MODI[$m] ?? 'finnisch', 'soll' => (int) $f['soll'], 'dauer' => (int) $f['dauer']];
-                if ($m > 0 && isset($f['feuchte'])) {
-                    $cmd['feuchte_soll'] = (int) $f['feuchte'];
-                }
-                $this->senden($cmd);
-                return;
-            }
+        // Favoriten (von der Kachel): werden an den ESP weitergegeben
+        if ($Ident == 'fav_apply') {
+            $this->senden(['fav_apply' => (int) $Value]);
+            return;
+        }
+        if ($Ident == 'fav_set') {
             $neu = json_decode((string) $Value, true);
-            if (is_array($neu) && isset($neu['slot'], $neu['soll'], $neu['dauer']) && $neu['slot'] >= 0 && $neu['slot'] < 4) {
-                $fav[(int) $neu['slot']] = ['modus' => (int) ($neu['modus'] ?? 0), 'soll' => (int) $neu['soll'],
-                                            'dauer' => (int) $neu['dauer'], 'feuchte' => (int) ($neu['feuchte'] ?? 5)];
-                $this->WriteAttributeString('Favoriten', json_encode($fav));
+            if (is_array($neu) && isset($neu['slot'], $neu['soll'], $neu['dauer'])) {
+                $this->senden(['fav_set' => [
+                    'slot' => (int) $neu['slot'], 'modus' => (int) ($neu['modus'] ?? 0), 'soll' => (int) $neu['soll'],
+                    'dauer' => (int) $neu['dauer'], 'feuchte' => (int) ($neu['feuchte'] ?? 5)]]);
             }
-            $this->kachelAktualisieren();
             return;
         }
         if (!isset(self::FELDER[$Ident]) || !self::FELDER[$Ident][3]) {
